@@ -28,15 +28,20 @@ endif()
 
 foreach(archive IN LISTS ARCHIVES)
     dump_binary(directives /directives "${archive}")
-    # /MD and /MDd select the DLL import libraries MSVCRT and MSVCRTD.
-    if(NOT directives MATCHES "[/-]defaultlib:\"?${crt}(\"|[ \t\r\n]|$)")
-        message(FATAL_ERROR "${archive} does not select the ${crt} DLL runtime.")
-    endif()
     if(directives MATCHES "[/-]defaultlib:\"?(libcmt|libcpmt|libucrt|libvcruntime)d?(\"|[ \t\r\n]|$)"
        OR directives MATCHES "[/-]defaultlib:\"?${other_crt}(\"|[ \t\r\n]|$)")
         message(FATAL_ERROR "${archive} contains a static or mismatched CRT directive.")
     endif()
-    message(STATUS "${archive}: ${crt} DLL runtime")
+    # /MD and /MDd select MSVCRT and MSVCRTD. MSVC /GL archives may expose no
+    # directives; cmake/dynamic_crt.h checks every source's CRT macros at build
+    # time, including debug/release agreement, before these archives are made.
+    if(directives MATCHES "[/-]defaultlib:\"?${crt}(\"|[ \t\r\n]|$)")
+        message(STATUS "${archive}: ${crt} DLL runtime")
+    elseif(LTO)
+        message(STATUS "${archive}: DLL runtime enforced at compile time (LTO)")
+    else()
+        message(FATAL_ERROR "${archive} does not select the ${crt} DLL runtime.")
+    endif()
 endforeach()
 
 dump_binary(imports /dependents "${PLUGIN}")

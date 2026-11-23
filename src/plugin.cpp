@@ -382,20 +382,37 @@ extern "C" int __cdecl winampGetExtendedFileInfoW(const wchar_t* path,
     const char* key, wchar_t* result, std::size_t capacity) {
     if (!key || !result || capacity == 0) return 0;
     result[0] = L'\0';
+    // Reject unsupported fields before opening the file. Classify only once.
+    enum class Field { Title, Artist, Album, Length, Bitrate, SampleRate,
+        Channels, Type, Lossless, Family };
+    Field field;
+    if (_stricmp(key, "title") == 0) field = Field::Title;
+    else if (_stricmp(key, "artist") == 0) field = Field::Artist;
+    else if (_stricmp(key, "album") == 0) field = Field::Album;
+    else if (_stricmp(key, "length") == 0) field = Field::Length;
+    else if (_stricmp(key, "bitrate") == 0) field = Field::Bitrate;
+    else if (_stricmp(key, "samplerate") == 0) field = Field::SampleRate;
+    else if (_stricmp(key, "channels") == 0) field = Field::Channels;
+    else if (_stricmp(key, "type") == 0) field = Field::Type;
+    else if (_stricmp(key, "lossless") == 0) field = Field::Lossless;
+    else if (_stricmp(key, "family") == 0) field = Field::Family;
+    else return 0;
     try {
         const auto info = FileInfo(path);
         if (info.display_title.empty()) return 0;
         std::wstring value;
-        if (_stricmp(key, "title") == 0) value = info.title;
-        else if (_stricmp(key, "artist") == 0) value = info.artist;
-        else if (_stricmp(key, "album") == 0) value = info.album;
-        else if (_stricmp(key, "length") == 0) value = std::to_wstring(info.length_ms);
-        else if (_stricmp(key, "bitrate") == 0) value = std::to_wstring(BitrateKbps(info.bitrate));
-        else if (_stricmp(key, "samplerate") == 0) value = L"48000";
-        else if (_stricmp(key, "channels") == 0) value = std::to_wstring(info.source_channels);
-        else if (_stricmp(key, "type") == 0 || _stricmp(key, "lossless") == 0) value = L"0";
-        else if (_stricmp(key, "family") == 0) value = L"Ogg Opus";
-        else return 0;
+        switch (field) {
+        case Field::Title: value = info.title; break;
+        case Field::Artist: value = info.artist; break;
+        case Field::Album: value = info.album; break;
+        case Field::Length: value = std::to_wstring(info.length_ms); break;
+        case Field::Bitrate: value = std::to_wstring(BitrateKbps(info.bitrate)); break;
+        case Field::SampleRate: value = L"48000"; break;
+        case Field::Channels: value = std::to_wstring(info.source_channels); break;
+        case Field::Type:
+        case Field::Lossless: value = L"0"; break;
+        case Field::Family: value = L"Ogg Opus"; break;
+        }
         CopyText(result, capacity, value.c_str());
         return 1;
     } catch (...) {

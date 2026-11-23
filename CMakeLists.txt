@@ -16,10 +16,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Initialize Release IPO for the plugin and all source-built static libraries.
+# Older dependency CMakeLists must honor IPO rather than silently ignore it.
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+# Keep the existing floating-point rules and runtime CPU dispatch unchanged.
+include(CheckIPOSupported)
+check_ipo_supported(RESULT winamp_opus_ipo_supported
+    OUTPUT winamp_opus_ipo_error LANGUAGES C CXX)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${winamp_opus_ipo_supported}")
+if(winamp_opus_ipo_supported)
+    message(STATUS "Release IPO/LTO enabled")
+else()
+    message(WARNING "Release IPO/LTO unavailable: ${winamp_opus_ipo_error}")
+endif()
+
 option(WINAMP_OPUS_DEPENDENCIES_ONLY "Build only the three static libraries" OFF)
 option(WINAMP_OPUS_BUILD_TESTS "Build decoder and input-plugin tests" ON)
 set(WINAMP_OPUS_TEST_FILE "" CACHE FILEPATH "Optional local Opus file for CTest")
 set(WINAMP_OPUS_MULTICHANNEL_TEST_FILE "" CACHE FILEPATH "Optional 5.1/7.1 Opus file for CTest")
+
+# Enforce the actual CRT choice even for /GL objects whose directives cannot
+# be inspected by dumpbin. This adds no runtime code.
+add_compile_definitions("$<$<CONFIG:Debug>:WINAMP_OPUS_DEBUG_CRT>")
+add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:/FI${PROJECT_SOURCE_DIR}/cmake/dynamic_crt.h>")
 
 include(cmake/Dependencies.cmake)
 if(WINAMP_OPUS_DEPENDENCIES_ONLY)

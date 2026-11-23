@@ -42,13 +42,14 @@ add_dependencies(native_output_tests in_opus)
 add_test(NAME native_output COMMAND native_output_tests "$<TARGET_FILE:in_opus>" "${CMAKE_CURRENT_BINARY_DIR}/native-data")
 set_tests_properties(native_output PROPERTIES TIMEOUT 60)
 
-# Check the actual PE imports and every archive's CRT linker directives, not
-# just CMake options: upstream projects can otherwise silently select /MT.
+# Check PE imports and readable archive CRT directives. The project's forced
+# include also validates the compiler's CRT macros for opaque /GL objects.
 add_test(NAME dynamic_crt COMMAND "${CMAKE_COMMAND}"
     "-DLINKER=${CMAKE_LINKER}"
     "-DPLUGIN=$<TARGET_FILE:in_opus>"
     "-DARCHIVES=$<TARGET_FILE:ogg>;$<TARGET_FILE:opus>;$<TARGET_FILE:opusfile>;$<TARGET_FILE:opus_decoder>;$<TARGET_FILE:test_fixtures>"
     "-DCONFIG=$<CONFIG>"
+    "-DLTO=$<AND:$<CONFIG:Release>,$<BOOL:${winamp_opus_ipo_supported}>>"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/check_dynamic_crt.cmake")
 set_tests_properties(dynamic_crt PROPERTIES TIMEOUT 30)
 
