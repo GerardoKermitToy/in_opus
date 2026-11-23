@@ -1,0 +1,57 @@
+#pragma code_page(65001)
+#include <windows.h>
+#include "resource.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+IDD_OPUS_FILE_INFO DIALOGEX 0, 0, 340, 294
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Opus File Information"
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    LTEXT "", IDC_INFO_TITLE, 14, 12, 312, 18, SS_ENDELLIPSIS | SS_NOPREFIX
+
+    LTEXT "Artist:", -1, 14, 40, 78, 12
+    LTEXT "", IDC_INFO_ARTIST, 100, 40, 226, 12, SS_ENDELLIPSIS | SS_NOPREFIX
+    LTEXT "Album:", -1, 14, 58, 78, 12
+    LTEXT "", IDC_INFO_ALBUM, 100, 58, 226, 12, SS_ENDELLIPSIS | SS_NOPREFIX
+
+    GROUPBOX "Audio", -1, 12, 80, 316, 140
+    LTEXT "Format:", -1, 24, 96, 102, 12
+    LTEXT "", IDC_INFO_FORMAT, 132, 96, 184, 12, SS_ENDELLIPSIS | SS_NOPREFIX
+    LTEXT "Duration:", -1, 24, 114, 102, 12
+    LTEXT "", IDC_INFO_DURATION, 132, 114, 184, 12, SS_NOPREFIX
+    LTEXT "Average bitrate:", -1, 24, 132, 102, 12
+    LTEXT "", IDC_INFO_BITRATE, 132, 132, 184, 12, SS_NOPREFIX
+    LTEXT "Source channels:", -1, 24, 150, 102, 12
+    LTEXT "", IDC_INFO_CHANNELS, 132, 150, 184, 12, SS_NOPREFIX
+    LTEXT "PCM output:", -1, 24, 168, 102, 12
+    LTEXT "", IDC_INFO_OUTPUT, 132, 168, 184, 12, SS_NOPREFIX
+
+    LTEXT "", IDC_INFO_STATUS, 24, 188, 292, 27, SS_NOPREFIX
+
+    LTEXT "&File:", -1, 14, 232, 38, 12
+    EDITTEXT IDC_INFO_PATH, 56, 230, 270, 15, ES_AUTOHSCROLL | ES_READONLY | WS_TABSTOP
+    CONTROL "", -1, "Static", SS_ETCHEDHORZ, 12, 255, 316, 1
+    DEFPUSHBUTTON "&Close", IDOK, 270, 264, 58, 16
+END
+
+IDD_OPUS_CONFIG DIALOGEX 0, 0, 360, 274
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Winamp Opus Settings"
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    GROUPBOX "Output channels", -1, 12, 10, 336, 108
+    CONTROL "&Stereo", IDC_OUTPUT_STEREO, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 24, 28, 300, 14
+    LTEXT "Duplicate mono; downmix multichannel audio to stereo.", -1, 36, 46, 300, 24
+    CONTROL "S&ource channels (default)", IDC_OUTPUT_SOURCE, "Button", BS_AUTORADIOBUTTON, 24, 76, 300, 14
+    LTEXT "Keep 1 to 8 channels without downmixing, in Windows PCM order.", -1, 36, 94, 300, 18
+
+    LTEXT "Requires a compatible output plugin and audio device. Stereo is used if the output rejects the format or the channel layout changes within a file.", -1, 14, 126, 332, 30
+    LTEXT "DSP and visualization receive the actual channel count, as in the stock Winamp input plugins.", -1, 14, 160, 332, 27
+    LTEXT "Changes take effect the next time playback starts.", -1, 14, 192, 332, 14
+    LTEXT "", IDC_OUTPUT_STATUS, 14, 210, 332, 31, SS_NOPREFIX
+    CONTROL "", -1, "Static", SS_ETCHEDHORZ, 12, 246, 336, 1
+    DEFPUSHBUTTON "&OK", IDOK, 220, 254, 58, 16
+    PUSHBUTTON "&Cancel", IDCANCEL, 288, 254, 60, 16
+END

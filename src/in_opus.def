@@ -1,0 +1,4 @@
+LIBRARY in_opus
+EXPORTS
+    winampGetInModule2
+    winampGetExtendedFileInfoW

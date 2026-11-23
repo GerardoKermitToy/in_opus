@@ -1,0 +1,38 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "vs2022-win32",
+      "displayName": "Visual Studio 2022 / Win32",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "Win32",
+      "binaryDir": "${sourceDir}/build/vs2022-win32",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist",
+        "WINAMP_OPUS_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "vs2026-win32",
+      "displayName": "Visual Studio 2026 / Win32",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "Win32",
+      "binaryDir": "${sourceDir}/build/vs2026-win32",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist",
+        "WINAMP_OPUS_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "vs2022-win32", "configuration": "Release", "jobs": 4 },
+    { "name": "debug", "configurePreset": "vs2022-win32", "configuration": "Debug", "jobs": 4 },
+    { "name": "release-vs2026", "configurePreset": "vs2026-win32", "configuration": "Release", "jobs": 4 }
+  ],
+  "testPresets": [
+    { "name": "release", "configurePreset": "vs2022-win32", "configuration": "Release", "output": { "outputOnFailure": true } },
+    { "name": "debug", "configurePreset": "vs2022-win32", "configuration": "Debug", "output": { "outputOnFailure": true } },
+    { "name": "release-vs2026", "configurePreset": "vs2026-win32", "configuration": "Release", "output": { "outputOnFailure": true } }
+  ]
+}
