@@ -1,5 +1,5 @@
 #pragma once
-#include "opus_decoder.hpp"
+#include "playback_settings.hpp"
 #include <windows.h>
 #include <string>
 

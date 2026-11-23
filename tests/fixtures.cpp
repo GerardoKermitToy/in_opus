@@ -33,7 +33,7 @@ void Packet(OggStream& stream, std::ofstream& output, unsigned char* data,
 } // namespace
 
 void MakeOpus(const std::filesystem::path& path, int channels, int frames, int serial,
-    const std::vector<std::string>& extra_tags, int header_gain_q8) {
+    const std::vector<std::string>& extra_tags, int header_gain_q8, int cbr_bitrate) {
     constexpr int rate = winamp_opus::kSampleRate;
     const int family = channels > 2 ? 1 : 0;
     int streams = 0, coupled = 0, error = 0;
@@ -42,6 +42,10 @@ void MakeOpus(const std::filesystem::path& path, int channels, int frames, int s
         opus_multistream_surround_encoder_create(rate, channels, family, &streams,
             &coupled, mapping.data(), OPUS_APPLICATION_AUDIO, &error), &opus_multistream_encoder_destroy);
     Check(encoder && error == OPUS_OK, "create encoder");
+    if (cbr_bitrate > 0) {
+        Check(opus_multistream_encoder_ctl(encoder.get(), OPUS_SET_BITRATE(cbr_bitrate)) == OPUS_OK, "CBR bitrate");
+        Check(opus_multistream_encoder_ctl(encoder.get(), OPUS_SET_VBR(0)) == OPUS_OK, "CBR mode");
+    }
     int preskip = 0;
     Check(opus_multistream_encoder_ctl(encoder.get(), OPUS_GET_LOOKAHEAD(&preskip)) == OPUS_OK, "lookahead");
     std::ofstream output(path, std::ios::binary | std::ios::trunc);

@@ -5,3 +5,12 @@ EXPORTS
     winampGetExtendedFileInfo
     winampUseUnifiedFileInfoDlg
     winampAddUnifiedFileInfoPane
+    winampSetExtendedFileInfoW
+    winampSetExtendedFileInfo
+    winampWriteExtendedFileInfo
+    winampGetExtendedRead_open
+    winampGetExtendedRead_openW
+    winampGetExtendedRead_openW_float
+    winampGetExtendedRead_getData
+    winampGetExtendedRead_setTime
+    winampGetExtendedRead_close

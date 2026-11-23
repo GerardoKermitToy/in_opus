@@ -135,15 +135,14 @@ int wmain(int argc, wchar_t** argv) {
             parent.value, nullptr, GetModuleHandleW(nullptr), nullptr);
         wchar_t name[100]{};
         const auto pane = pane_export(0, path.c_str(), parent.value, name, 100);
-        Check(pane && GetPropW(parent.value, L"INBUILT_NOWRITEINFO"), "suppress unsupported tag writes");
+        Check(pane && !GetPropW(parent.value, L"INBUILT_NOWRITEINFO"), "tag-write API must leave the host basic pane editable");
         Check(Text(pane, IDC_INFO_TAGS).find(L"Ogg Opus") != std::wstring::npos, "unified Opus information");
-        const auto deadline = GetTickCount64() + 1000;
-        while ((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) == 0 && GetTickCount64() < deadline) {
-            MSG message{};
-            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&message); DispatchMessageW(&message); }
-            Sleep(1);
-        }
-        Check((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) && !IsWindowEnabled(combo), "unified basic pane is read-only");
+        // The extra technical pane is read-only; the host owns its editable basic
+        // fields now that this DLL implements the metadata setter/write exports.
+        Check((GetWindowLongPtrW(GetDlgItem(pane, IDC_INFO_TAGS), GWL_STYLE) & ES_READONLY) != 0,
+            "technical pane stays read-only");
+        Check((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) == 0 && IsWindowEnabled(combo),
+            "unified pane must not freeze sibling host controls");
         Check(pane_export(1, path.c_str(), parent.value, name, 100) == nullptr, "one unified Opus pane");
         DestroyWindow(parent.value); parent.value = nullptr;
         module->Quit();

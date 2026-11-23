@@ -155,7 +155,7 @@ void __cdecl Vis(void* pcm, int count, int bits, int) {
     ++vis_calls;
 }
 void __cdecl SetInfo(int bitrate, int rate, int count, int sync) {
-    Verify(bitrate > 0 && rate == 48 && count == expected_channels && sync == 1);
+    Verify(bitrate > 0 && sync == 1 && ((rate == 48 && count == expected_channels) || (rate == -1 && count == -1)));
 }
 int __cdecl DspActive() { return dsp_active ? 1 : 0; }
 int __cdecl Dsp(short* pcm, int frames, int bits, int count, int rate) {

@@ -3,6 +3,7 @@
 /third_party/downloads/
 /third_party/reference/
 /.vs/
+/.claude/
 /CMakeUserPresets.json
 *.user
 *.suo

@@ -79,7 +79,7 @@ void __cdecl Vis(void* data, int channels, int bits, int timestamp) {
 }
 void __cdecl VisInfo(int rate, int channels) { Verify(rate == 48000 && channels == 2); }
 void __cdecl SetInfo(int bitrate, int rate, int channels, int sync) {
-    Verify(bitrate > 0 && rate == 48 && channels == 2 && sync == 1);
+    Verify(bitrate > 0 && sync == 1 && ((rate == 48 && channels == 2) || (rate == -1 && channels == -1)));
 }
 int __cdecl DspActive() { return double_dsp ? 1 : 0; }
 int __cdecl Dsp(short* pcm, int frames, int bits, int channels, int rate) {

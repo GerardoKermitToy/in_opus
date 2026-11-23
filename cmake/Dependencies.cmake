@@ -31,7 +31,8 @@ FetchContent_Declare(opus URL "${opus_url}"
     URL_HASH SHA256=3267aa969b2b26542417f57819a5bc25d5079355300307dd2dddc7c704aed418
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     TLS_VERIFY TRUE
-    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/downloads/opus")
+    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/downloads/opus"
+    SOURCE_SUBDIR _populate_only)
 FetchContent_Declare(opusfile URL "${opusfile_url}"
     URL_HASH SHA256=118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
@@ -46,16 +47,59 @@ set(OPUS_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(OPUS_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
 set(OPUS_BUILD_SHARED_LIBRARY OFF CACHE BOOL "" FORCE)
 set(OPUS_STATIC_RUNTIME OFF CACHE BOOL "Use the same dynamic CRT as the plugin" FORCE)
-# The plugin uses standard Ogg Opus decoding. Optional experimental modes and
-# neural/redundancy paths are not part of ordinary local-file playback.
+# Neural weights are a separate, upstream checksum-pinned data archive. Only
+# generated C/header tables are consumed; no training code or runtime download.
+dependency_url(opus_models_url
+    "opus-models-1.6.1/opus_data-a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e.tar.gz"
+    "https://media.xiph.org/opus/models/opus_data-a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e.tar.gz")
+FetchContent_Declare(opus_models URL "${opus_models_url}"
+    URL_HASH SHA256=a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE TLS_VERIFY TRUE
+    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/downloads/opus-models"
+    SOURCE_SUBDIR _populate_only)
+# Standard decoding stays unenhanced by default. OSCE, QEXT and DRED are built
+# for explicit runtime use; none makes HTTP/TCP transport recovery automatic.
+# OSCE/DRED also pull upstream's shared DNN/PLC support into the static library.
 set(OPUS_FIXED_POINT OFF CACHE BOOL "Use floating point for the plugin" FORCE)
 set(OPUS_CUSTOM_MODES OFF CACHE BOOL "Disable nonstandard CELT modes" FORCE)
-set(OPUS_DRED OFF CACHE BOOL "Disable Deep Redundancy" FORCE)
-set(OPUS_OSCE OFF CACHE BOOL "Disable Opus Speech Coding Enhancement" FORCE)
-set(OPUS_DEEP_PLC OFF CACHE BOOL "Disable neural packet loss concealment" FORCE)
+set(OPUS_DRED ON CACHE BOOL "Compile optional, bounded packet-loss recovery" FORCE)
+set(OPUS_OSCE ON CACHE BOOL "Compile optional speech enhancement" FORCE)
+set(OPUS_DEEP_PLC OFF CACHE BOOL "Do not request standalone neural PLC" FORCE)
 set(OPUS_HARDENING ON CACHE BOOL "" FORCE)
 set(OPUS_PACKAGE_VERSION "1.6.1")
-FetchContent_MakeAvailable(ogg opus opusfile speexdsp)
+FetchContent_MakeAvailable(ogg opus_models opus opusfile speexdsp)
+set(opus_model_directory "${opus_models_SOURCE_DIR}")
+if(EXISTS "${opus_model_directory}/dnn")
+    string(APPEND opus_model_directory "/dnn")
+endif()
+foreach(model_file lace_data.c lace_data.h nolace_data.c nolace_data.h
+        bbwenet_data.c bbwenet_data.h fargan_data.c fargan_data.h
+        plc_data.c plc_data.h pitchdnn_data.c pitchdnn_data.h
+        dred_rdovae_constants.h dred_rdovae_dec_data.h dred_rdovae_enc_data.h
+        dred_rdovae_stats_data.h dred_rdovae_dec_data.c dred_rdovae_enc_data.c
+        dred_rdovae_stats_data.c lossgen_data.c lossgen_data.h)
+    if(NOT EXISTS "${opus_model_directory}/${model_file}")
+        message(FATAL_ERROR "Missing checksum-pinned Opus neural table: ${model_file}")
+    endif()
+    file(COPY "${opus_model_directory}/${model_file}" DESTINATION "${opus_SOURCE_DIR}/dnn")
+endforeach()
+add_subdirectory("${opus_SOURCE_DIR}" "${opus_BINARY_DIR}")
+# Upstream 1.6.1 CMake omits these configure.ac options. Enable the exact same
+# source guards without patching downloaded implementation files.
+target_compile_definitions(opus PRIVATE ENABLE_QEXT=1 ENABLE_OSCE_BWE=1)
+if(MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # MSVC accepts these SSE4.1 intrinsics without a GCC-style ISA switch.
+    get_target_property(opus_compile_sources opus SOURCES)
+    foreach(opus_compile_source IN LISTS opus_compile_sources)
+        if(opus_compile_source MATCHES "sse4_1\\.c$")
+            if(NOT IS_ABSOLUTE "${opus_compile_source}")
+                set(opus_compile_source "${opus_SOURCE_DIR}/${opus_compile_source}")
+            endif()
+            set_property(SOURCE "${opus_compile_source}" DIRECTORY "${opus_SOURCE_DIR}"
+                PROPERTY COMPILE_FLAGS "")
+        endif()
+    endforeach()
+endif()
 
 # Standalone, namespaced SpeexDSP resampler; no echo canceller or codec.
 add_library(speex_resampler STATIC "${speexdsp_SOURCE_DIR}/libspeexdsp/resample.c")

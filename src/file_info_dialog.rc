@@ -1,5 +1,6 @@
 #pragma code_page(65001)
 #include <windows.h>
+#include <commctrl.h>
 #include "resource.h"
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
@@ -8,7 +9,7 @@ STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 9, "Segoe UI", 400, 0, 1
 BEGIN
-    LTEXT "Read-only Ogg Opus information. This plugin does not modify tags.", -1, 6, 5, 329, 20
+    LTEXT "Read-only technical information. Use Edit tags for supported local files.", -1, 6, 5, 329, 20
     EDITTEXT IDC_INFO_TAGS, 6, 28, 329, 130, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
 END
 
@@ -39,10 +40,11 @@ BEGIN
     LTEXT "&File / URL:", -1, 14, 295, 60, 12
     EDITTEXT IDC_INFO_PATH, 80, 293, 266, 15, ES_AUTOHSCROLL | ES_READONLY | WS_TABSTOP
     CONTROL "", -1, "Static", SS_ETCHEDHORZ, 12, 315, 336, 1
+    PUSHBUTTON "&Edit tags...", IDC_EDIT_TAGS, 14, 322, 82, 16
     DEFPUSHBUTTON "&Close", IDOK, 290, 322, 58, 16
 END
 
-IDD_OPUS_CONFIG DIALOGEX 0, 0, 420, 340
+IDD_OPUS_CONFIG DIALOGEX 0, 0, 420, 365
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Winamp Opus Settings"
 FONT 9, "Segoe UI", 400, 0, 1
@@ -50,15 +52,16 @@ BEGIN
     GROUPBOX "Output channels", -1, 12, 8, 396, 62
     CONTROL "S&ource channels (default)", IDC_OUTPUT_SOURCE, "Button", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 24, 25, 220, 13
     CONTROL "&Stereo", IDC_OUTPUT_STEREO, "Button", BS_AUTORADIOBUTTON, 270, 25, 120, 13
-    LTEXT "Keep 1-8 channels. Unsupported layouts and live radio use stereo.", -1, 24, 44, 372, 20
+    LTEXT "Channel mode:", -1, 24, 48, 86, 12
+    COMBOBOX IDC_OUTPUT_MODE, 116, 44, 280, 130, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX "PCM output", -1, 12, 78, 396, 70
-    LTEXT "Sample rate (Hz):", -1, 24, 97, 86, 12
+    LTEXT "Rate (0 = native):", -1, 24, 97, 86, 12
     COMBOBOX IDC_PCM_RATE, 116, 93, 88, 130, CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     LTEXT "Resolution:", -1, 224, 97, 62, 12
     COMBOBOX IDC_PCM_BITS, 294, 93, 102, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT "Resampler quality:", -1, 24, 122, 100, 12
     COMBOBOX IDC_RESAMPLE_QUALITY, 130, 118, 52, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT "0: fastest, 10: highest. Bypassed at 48 kHz.", -1, 194, 122, 202, 20
+    LTEXT "0: fastest, 10: highest. Bypassed at the native rate.", -1, 194, 122, 202, 20
     GROUPBOX "ReplayGain / R128", -1, 12, 156, 396, 89
     LTEXT "Gain mode:", -1, 24, 175, 82, 12
     COMBOBOX IDC_GAIN_MODE, 116, 171, 280, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
@@ -72,8 +75,112 @@ BEGIN
     CONTROL "Enable &dithering", IDC_DITHER, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 254, 178, 13
     CONTROL "Show &instant bitrate", IDC_INSTANT_BR, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 218, 254, 190, 13
     CONTROL "Use Winamp's &unified file information dialog (local files)", IDC_UNIFIED_INFO, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 275, 394, 13
-    LTEXT "Audio changes take effect on the next playback. Tag editing is not supported.", -1, 14, 294, 394, 13
+    LTEXT "Audio changes take effect on the next playback.", -1, 14, 294, 394, 13
     LTEXT "", IDC_OUTPUT_STATUS, 14, 310, 260, 26, SS_NOPREFIX
-    DEFPUSHBUTTON "&OK", IDOK, 280, 318, 58, 16
-    PUSHBUTTON "&Cancel", IDCANCEL, 348, 318, 60, 16
+    PUSHBUTTON "&Advanced...", IDC_ADVANCED, 14, 343, 82, 16
+    PUSHBUTTON "&More settings...", IDC_MORE_SETTINGS, 104, 343, 100, 16
+    DEFPUSHBUTTON "&OK", IDOK, 280, 343, 58, 16
+    PUSHBUTTON "&Cancel", IDCANCEL, 348, 343, 60, 16
+END
+
+IDD_OPUS_ADVANCED DIALOGEX 0, 0, 420, 338
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Advanced Opus Decoding"
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    CONTROL "Decode actual Opus HD / QEXT at native 96 kHz", IDC_OPUS_HD, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 12, 392, 13
+    LTEXT "PCM rate 0 selects native output. A fixed PCM rate resamples afterwards.", -1, 14, 30, 392, 20
+    GROUPBOX "Optional processing (changes decoded audio)", -1, 12, 54, 396, 112
+    LTEXT "Speech enhancement:", -1, 24, 72, 114, 12
+    COMBOBOX IDC_OPUS_SPEECH, 148, 68, 248, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL "Speech BWE (48 kHz only; synthetic high frequencies)", IDC_OPUS_BWE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 94, 372, 13
+    CONTROL "Mono-compatible intensity stereo (disable phase inversion)", IDC_MONO_COMPATIBLE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 114, 372, 13
+    CONTROL "Ignore packet extensions (compatibility / comparison; not DRED)", IDC_IGNORE_EXTENSIONS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 134, 372, 13
+    LTEXT "Ambisonics output:", -1, 14, 178, 124, 12
+    COMBOBOX IDC_AMBISONIC_MODE, 148, 174, 248, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Headphones use an analytic approximation, not measured/personalized HRTF.", -1, 14, 196, 392, 20
+    GROUPBOX "Bounded recovery of provable interior packet loss", -1, 12, 220, 396, 82
+    LTEXT "Recovery mode:", -1, 24, 239, 114, 12
+    COMBOBOX IDC_RECOVERY_MODE, 148, 235, 248, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Maximum gap (ms):", -1, 24, 263, 114, 12
+    EDITTEXT IDC_RECOVERY_LIMIT, 148, 259, 54, 15, ES_AUTOHSCROLL | ES_NUMBER | WS_TABSTOP
+    LTEXT "20-1000; CRC, headers and truncation stay strict. Not TCP repair.", -1, 24, 281, 372, 14
+    DEFPUSHBUTTON "&OK", IDOK, 280, 314, 58, 16
+    PUSHBUTTON "&Cancel", IDCANCEL, 348, 314, 60, 16
+END
+
+// Additional options are a separate transaction; the original Advanced dialog
+// and all legacy IDs retain their existing meaning.
+IDD_OPUS_MORE DIALOGEX 0, 0, 420, 335
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_CONTROLPARENT
+CAPTION "More Opus Settings"
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    CONTROL "", IDC_SETTINGS_TABS, WC_TABCONTROL, WS_TABSTOP | WS_GROUP | WS_CLIPSIBLINGS, 12, 8, 396, 291
+    DEFPUSHBUTTON "&OK", IDOK, 280, 311, 58, 16
+    PUSHBUTTON "&Cancel", IDCANCEL, 348, 311, 60, 16
+END
+
+IDD_OPUS_PROCESSING DIALOGEX 0, 0, 384, 264
+STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    CONTROL "Use &custom integer quantization (off by default)", IDC_CUSTOM_QUANTIZER, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 8, 368, 14
+    LTEXT "Dither distribution:", -1, 8, 39, 118, 12
+    COMBOBOX IDC_DITHER_PDF, 136, 35, 232, 90, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Noise shaping:", -1, 8, 67, 118, 12
+    COMBOBOX IDC_NOISE_SHAPE, 136, 63, 232, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Custom quantization is opt-in. With it off, the original 16-bit decoder fast path remains available. Dithering is enabled on the main settings page.", -1, 8, 94, 368, 42
+    LTEXT "ATH shaping uses first-order shaping at unsupported rates. Surround matrices may clip; allow headroom with the file/radio gain controls.", -1, 8, 145, 368, 36
+    CONTROL "&Buffer small local files", IDC_BUFFER_SMALL_FILES, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 200, 368, 14
+END
+
+IDD_OPUS_GAIN_OPTIONS DIALOGEX 0, 0, 384, 264
+STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    CONTROL "Use &Winamp ReplayGain settings when available", IDC_HOST_REPLAYGAIN, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 8, 368, 14
+    LTEXT "Host settings are read once at playback start, never written. Local gain choices remain the fallback and are saved independently.", -1, 8, 31, 368, 32
+    CONTROL "Use only the &preferred track/album gain (no fallback)", IDC_PREFERRED_GAIN_ONLY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 79, 368, 14
+    CONTROL "&Prevent clipping with tagged peak", IDC_PREVENT_CLIPPING, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 104, 368, 14
+    LTEXT "Peak handling:", -1, 8, 139, 118, 12
+    COMBOBOX IDC_PEAK_MODE, 136, 135, 232, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Untagged gain (dB):", -1, 8, 170, 118, 12
+    EDITTEXT IDC_NON_RG_GAIN, 136, 166, 70, 15, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Untagged gain accepts -60 through +30 dB. Opus header gain is preserved except in explicit Raw mode. Peak options need valid peak tags.", -1, 8, 201, 368, 42
+END
+
+IDD_OPUS_NETWORK DIALOGEX 0, 0, 384, 264
+STYLE DS_SETFONT | DS_CONTROL | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 9, "Segoe UI", 400, 0, 1
+BEGIN
+    CONTROL "Use Winamp &proxy settings when available", IDC_HOST_PROXY, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 6, 368, 14
+    LTEXT "Timeout (ms):", -1, 8, 34, 113, 12
+    EDITTEXT IDC_TIMEOUT_MS, 126, 30, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Probe limit (KiB):", -1, 198, 34, 112, 12
+    EDITTEXT IDC_PROBE_KB, 316, 30, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Reconnect attempts:", -1, 8, 60, 113, 12
+    EDITTEXT IDC_RECONNECT_ATTEMPTS, 126, 56, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Retry delay (ms):", -1, 198, 60, 112, 12
+    EDITTEXT IDC_RECONNECT_DELAY, 316, 56, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Stream buffer (KiB):", -1, 8, 86, 113, 12
+    EDITTEXT IDC_STREAM_BUFFER, 126, 82, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Prebuffer (KiB):", -1, 198, 86, 112, 12
+    EDITTEXT IDC_PREBUFFER_KB, 316, 82, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Rebuffer threshold (%):", -1, 8, 112, 113, 12
+    EDITTEXT IDC_UNDERRUN_PERCENT, 126, 108, 52, 15, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Proxy use:", -1, 198, 112, 62, 12
+    COMBOBOX IDC_PROXY_MODE, 262, 108, 106, 100, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT "Manual HTTP proxy (no credentials):", -1, 8, 135, 360, 12
+    EDITTEXT IDC_PROXY_URL, 8, 149, 360, 15, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL "&Save streams", IDC_SAVE_STREAMS, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 8, 174, 106, 14
+    CONTROL "&Interactive authentication", IDC_INTERACTIVE_AUTH, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 116, 174, 148, 14
+    CONTROL "HTTP &seek", IDC_HTTP_SEEK, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 274, 174, 94, 14
+    LTEXT "Save directory (optional):", -1, 8, 198, 360, 12
+    EDITTEXT IDC_SAVE_DIRECTORY, 8, 212, 360, 15, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "Blank proxy: system settings. Prebuffer <= buffer and half the probe. Credentials are never saved; HTTP seeking requires server support.", -1, 8, 236, 368, 24
 END

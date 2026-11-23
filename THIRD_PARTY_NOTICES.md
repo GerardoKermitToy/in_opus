@@ -46,3 +46,24 @@ Reference headers:
 - https://github.com/alexfreud/winamp/blob/community/Src/Winamp/OUT.H
 
 Winamp is a trademark of its respective owner. This is an independent plugin, not an official Winamp release.
+
+## Shared optional Opus enhancements
+
+The shared libopus build includes QEXT (Opus HD), optional OSCE/BWE and DRED for
+explicit use by the Opus input and sibling independent Ogg input. Its generated
+neural tables come from the
+upstream archive `opus_data-a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e.tar.gz`
+at `https://media.xiph.org/opus/models/`, SHA-256
+`a5177ec6fb7d15058e99e57029746100121f68e4890b1467d4094aa336b6013e`.
+The normal Opus input path does not opt into speech enhancement or loss recovery.
+Both are explicit optional settings. No runtime model download or execution of
+training code is involved.
+
+The native bounded Ogg Opus packet reader and analytic Ambisonics renderer are
+adapted from our independently written GPL-3.0-only `in_vorbis` project. No
+WCL-licensed Winamp decoder implementation or artwork is included.
+
+The 1.5.0 Opus-only transactional comment editor, transport, speaker matrices,
+quantization, host-configuration snapshots, extended read and language support
+are likewise adapted from that independent GPL-3.0-only sibling. They do not
+link its Vorbis/FLAC/Speex decoders or add additional codec dependencies.
