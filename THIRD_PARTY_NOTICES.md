@@ -12,6 +12,7 @@ CMake copies each upstream `COPYING` file into the distribution's `licenses/` di
 | libogg | 1.3.6 | BSD-style | https://github.com/xiph/ogg/releases/tag/v1.3.6 |
 | libopus | 1.6.1 | BSD-style; see upstream COPYING for patent grant information | https://opus-codec.org/ and https://github.com/xiph/opus/tree/v1.6.1 |
 | libopusfile | 0.12 | BSD-style | https://github.com/xiph/opusfile/releases/tag/v0.12 |
+| SpeexDSP resampler | 1.2.1 | BSD-style | https://github.com/xiph/speexdsp/tree/SpeexDSP-1.2.1 |
 
 ## Reproducible source archives
 
@@ -23,6 +24,12 @@ CMake copies each upstream `COPYING` file into the distribution's `licenses/` di
   - This is the upstream Git snapshot, not the differently packaged Xiph release tarball.
 - libopusfile official release archive: `https://github.com/xiph/opusfile/releases/download/v0.12/opusfile-0.12.tar.gz`
   - SHA-256: `118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b`
+
+- SpeexDSP upstream `SpeexDSP-1.2.1`, commit `1b28a0f61bc31162979e1f26f3981fc3637095c8`:
+  `https://codeload.github.com/xiph/speexdsp/tar.gz/1b28a0f61bc31162979e1f26f3981fc3637095c8`
+  - SHA-256: `59a53188f6d6ca2b48752f533523986a0604d2526eb50789b8fb09aa6b12645f`
+  - Only the standalone resampler is compiled. Windows WinHTTP provides HTTP/TLS;
+    no external network or TLS library is bundled.
 
 TLS certificate verification and SHA-256 verification are enabled for downloads.
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24...4.4)
-project(WinampOpus VERSION 1.2.5 LANGUAGES C CXX)
+project(WinampOpus VERSION 1.3.0 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT MSVC)
     message(FATAL_ERROR "Build with Microsoft Visual C++ on Windows.")
@@ -30,7 +30,7 @@ else()
     message(WARNING "Release IPO/LTO unavailable: ${winamp_opus_ipo_error}")
 endif()
 
-option(WINAMP_OPUS_DEPENDENCIES_ONLY "Build only the three static libraries" OFF)
+option(WINAMP_OPUS_DEPENDENCIES_ONLY "Build only the static audio libraries" OFF)
 option(WINAMP_OPUS_BUILD_TESTS "Build decoder and input-plugin tests" ON)
 set(WINAMP_OPUS_TEST_FILE "" CACHE FILEPATH "Optional local Opus file for CTest")
 set(WINAMP_OPUS_MULTICHANNEL_TEST_FILE "" CACHE FILEPATH "Optional 5.1/7.1 Opus file for CTest")
@@ -46,15 +46,16 @@ if(WINAMP_OPUS_DEPENDENCIES_ONLY)
 endif()
 
 add_library(opus_decoder STATIC src/opus_decoder.cpp src/opus_decoder.hpp
-    src/channel_layout.cpp src/channel_layout.hpp)
-target_link_libraries(opus_decoder PUBLIC opusfile)
+    src/channel_layout.cpp src/channel_layout.hpp src/http_stream.cpp src/http_stream.hpp
+    src/pcm_pipeline.cpp src/pcm_pipeline.hpp src/playback_settings.hpp)
+target_link_libraries(opus_decoder PUBLIC opusfile speex_resampler winhttp)
 target_include_directories(opus_decoder PUBLIC src)
 target_compile_definitions(opus_decoder PUBLIC UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_compile_options(opus_decoder PRIVATE /W4 /permissive- /utf-8)
 
 add_library(in_opus SHARED src/plugin.cpp src/winamp_input.hpp src/in_opus.def src/version.rc
     src/file_info_dialog.cpp src/file_info_dialog.hpp src/file_info_dialog.rc src/resource.h
-    src/output_settings.cpp src/output_settings.hpp)
+    src/output_settings.cpp src/output_settings.hpp src/metadata.cpp src/metadata.hpp)
 target_link_libraries(in_opus PRIVATE opus_decoder user32 gdi32 advapi32)
 target_compile_options(in_opus PRIVATE /W4 /permissive- /utf-8)
 set_target_properties(in_opus PROPERTIES PREFIX "" OUTPUT_NAME "in_opus"

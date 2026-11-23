@@ -118,6 +118,35 @@ int wmain(int argc, wchar_t** argv) {
         UnhookWindowsHookEx(hook); hook = nullptr;
         Check(failure.empty(), failure.c_str());
         Check(inspected == 2, "native property dialog not inspected");
+        using Unified = int (__cdecl*)(const wchar_t*);
+        using Pane = HWND (__cdecl*)(int, const wchar_t*, HWND, wchar_t*, int);
+        const auto unified = reinterpret_cast<Unified>(GetProcAddress(library, "winampUseUnifiedFileInfoDlg"));
+        const auto pane_export = reinterpret_cast<Pane>(GetProcAddress(library, "winampAddUnifiedFileInfoPane"));
+        Check(unified && pane_export, "unified information exports");
+        Check(unified(path.c_str()) == 1 && unified(nullptr) == 0 &&
+            unified(L"https://example.invalid/radio.opus") == 0, "local-only unified dialog routing");
+        struct Window { HWND value = nullptr; ~Window() { if (value) DestroyWindow(value); } } parent;
+        parent.value = CreateWindowExW(0, L"STATIC", L"Unified information test", WS_POPUP, 0, 0, 600, 400,
+            nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+        Check(parent.value != nullptr, "create unified test owner");
+        const auto edit = CreateWindowExW(0, L"EDIT", L"Metadata", WS_CHILD, 0, 0, 100, 20, parent.value,
+            nullptr, GetModuleHandleW(nullptr), nullptr);
+        const auto combo = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | CBS_DROPDOWN, 0, 24, 100, 100,
+            parent.value, nullptr, GetModuleHandleW(nullptr), nullptr);
+        wchar_t name[100]{};
+        const auto pane = pane_export(0, path.c_str(), parent.value, name, 100);
+        Check(pane && GetPropW(parent.value, L"INBUILT_NOWRITEINFO"), "suppress unsupported tag writes");
+        Check(Text(pane, IDC_INFO_TAGS).find(L"Ogg Opus") != std::wstring::npos, "unified Opus information");
+        const auto deadline = GetTickCount64() + 1000;
+        while ((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) == 0 && GetTickCount64() < deadline) {
+            MSG message{};
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&message); DispatchMessageW(&message); }
+            Sleep(1);
+        }
+        Check((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) && !IsWindowEnabled(combo), "unified basic pane is read-only");
+        Check(pane_export(1, path.c_str(), parent.value, name, 100) == nullptr, "one unified Opus pane");
+        DestroyWindow(parent.value); parent.value = nullptr;
+        module->Quit();
         FreeLibrary(library); library = nullptr;
         std::cout << "Native dialog passed: metadata, aligned fields, duration, bitrate, Unicode path, Close/Cancel.\n";
         return 0;

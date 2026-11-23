@@ -135,12 +135,12 @@ int wmain(int argc, wchar_t** argv) {
         Check(library != nullptr, "load plugin DLL (and static dependencies)");
         const auto get_module = reinterpret_cast<winamp::InModule* (__cdecl*)()>(
             GetProcAddress(library, "winampGetInModule2"));
-        using Metadata = int (__cdecl*)(const wchar_t*, const char*, wchar_t*, std::size_t);
+        using Metadata = int (__cdecl*)(const wchar_t*, const char*, wchar_t*, int);
         const auto metadata = reinterpret_cast<Metadata>(GetProcAddress(library, "winampGetExtendedFileInfoW"));
         Check(get_module && metadata, "undecorated exports");
         input = get_module();
         Check(input && input->version == winamp::kInputVersion, "Unicode input ABI");
-        Check(std::string(input->FileExtensions) == "opus", "extension registration");
+        Check(std::string(input->FileExtensions) == "opus;opu", "extension registration");
         winamp::OutModule output{};
         output.Open = Open; output.Close = Close; output.Write = Write; output.CanWrite = CanWrite;
         output.IsPlaying = IsPlaying; output.Pause = Pause; output.SetVolume = Volume;
@@ -159,7 +159,8 @@ int wmain(int argc, wchar_t** argv) {
         wchar_t tiny[1]{L'x'};
         Check(metadata(path.c_str(), "family", tiny, 1) && tiny[0] == 0, "bounded metadata copy");
         Check(input->IsOurFile(path.c_str()) && input->IsOurFile(L"song.OPUS"), "case insensitive extension");
-        Check(!input->IsOurFile(L"http://example.invalid/song.opus"), "do not claim URLs");
+        Check(input->IsOurFile(L"http://example.invalid/song.opus"), "recognize explicit HTTP Opus URL without connecting");
+        Check(input->IsOurFile(L"https://example.invalid/live>.opus"), "recognize explicit radio routing hint without connecting");
         Check(!input->IsOurFile(L"song.ogg") && !input->IsOurFile(L"song.oga"), "do not claim missing Ogg files");
         Check(input->Play((directory / L"missing.opus").c_str()) != 0, "missing file failure");
         fail_open = true;

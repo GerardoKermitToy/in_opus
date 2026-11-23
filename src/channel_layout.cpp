@@ -3,8 +3,8 @@
 
 namespace winamp_opus {
 namespace {
-template<int Channels>
-void ReorderFrames(std::int16_t* pcm, int frames) noexcept {
+template<int Channels, typename Sample>
+void ReorderFrames(Sample* pcm, int frames) noexcept {
     // Fixed strides; touch only samples whose Windows position differs.
     for (int i = 0; i < frames; ++i, pcm += Channels) {
         std::swap(pcm[1], pcm[2]);
@@ -34,7 +34,8 @@ void ReorderFrames(std::int16_t* pcm, int frames) noexcept {
 }
 } // namespace
 
-void ReorderToWindows(std::int16_t* pcm, int frames, int channels) noexcept {
+template<typename Sample>
+void Reorder(Sample* pcm, int frames, int channels) noexcept {
     // Select the layout once per block, never once per sample. Mono, stereo,
     // and quad already have Windows order; unsupported counts are unchanged.
     switch (channels) {
@@ -46,4 +47,6 @@ void ReorderToWindows(std::int16_t* pcm, int frames, int channels) noexcept {
     default: break;
     }
 }
+void ReorderToWindows(std::int16_t* pcm, int frames, int channels) noexcept { Reorder(pcm, frames, channels); }
+void ReorderToWindows(float* pcm, int frames, int channels) noexcept { Reorder(pcm, frames, channels); }
 } // namespace winamp_opus

@@ -47,11 +47,17 @@ set_tests_properties(native_output PROPERTIES TIMEOUT 60)
 add_test(NAME dynamic_crt COMMAND "${CMAKE_COMMAND}"
     "-DLINKER=${CMAKE_LINKER}"
     "-DPLUGIN=$<TARGET_FILE:in_opus>"
-    "-DARCHIVES=$<TARGET_FILE:ogg>;$<TARGET_FILE:opus>;$<TARGET_FILE:opusfile>;$<TARGET_FILE:opus_decoder>;$<TARGET_FILE:test_fixtures>"
+    "-DARCHIVES=$<TARGET_FILE:ogg>;$<TARGET_FILE:opus>;$<TARGET_FILE:opusfile>;$<TARGET_FILE:opus_decoder>;$<TARGET_FILE:speex_resampler>;$<TARGET_FILE:test_fixtures>"
     "-DCONFIG=$<CONFIG>"
     "-DLTO=$<AND:$<CONFIG:Release>,$<BOOL:${winamp_opus_ipo_supported}>>"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/check_dynamic_crt.cmake")
 set_tests_properties(dynamic_crt PROPERTIES TIMEOUT 30)
+
+add_executable(advanced_playback_tests advanced_playback_tests.cpp ../src/metadata.cpp)
+target_link_libraries(advanced_playback_tests PRIVATE test_fixtures ws2_32)
+target_compile_options(advanced_playback_tests PRIVATE /W4 /permissive- /utf-8)
+add_test(NAME advanced_playback COMMAND advanced_playback_tests "${CMAKE_CURRENT_BINARY_DIR}/advanced-data")
+set_tests_properties(advanced_playback PROPERTIES TIMEOUT 45)
 
 if(WINAMP_OPUS_MULTICHANNEL_TEST_FILE)
     add_test(NAME surround_decode COMMAND decoder_tests --file "${WINAMP_OPUS_MULTICHANNEL_TEST_FILE}")

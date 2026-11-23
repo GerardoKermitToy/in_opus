@@ -16,6 +16,12 @@ dependency_url(opus_url "opus-1.6.1/opus-1.6.1.tar.gz"
     "https://codeload.github.com/xiph/opus/tar.gz/22244de5a79bd1d6d623c32e72bf1954b56235be")
 dependency_url(opusfile_url "opusfile-0.12/opusfile-0.12.tar.gz"
     "https://github.com/xiph/opusfile/releases/download/v0.12/opusfile-0.12.tar.gz")
+dependency_url(speexdsp_url "speexdsp-1.2.1-git/speexdsp-1.2.1.tar.gz"
+    "https://codeload.github.com/xiph/speexdsp/tar.gz/1b28a0f61bc31162979e1f26f3981fc3637095c8")
+FetchContent_Declare(speexdsp URL "${speexdsp_url}"
+    URL_HASH SHA256=59a53188f6d6ca2b48752f533523986a0604d2526eb50789b8fb09aa6b12645f
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE TLS_VERIFY TRUE
+    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/downloads/speexdsp")
 FetchContent_Declare(ogg URL "${ogg_url}"
     URL_HASH SHA256=5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
@@ -49,7 +55,14 @@ set(OPUS_OSCE OFF CACHE BOOL "Disable Opus Speech Coding Enhancement" FORCE)
 set(OPUS_DEEP_PLC OFF CACHE BOOL "Disable neural packet loss concealment" FORCE)
 set(OPUS_HARDENING ON CACHE BOOL "" FORCE)
 set(OPUS_PACKAGE_VERSION "1.6.1")
-FetchContent_MakeAvailable(ogg opus opusfile)
+FetchContent_MakeAvailable(ogg opus opusfile speexdsp)
+
+# Standalone, namespaced SpeexDSP resampler; no echo canceller or codec.
+add_library(speex_resampler STATIC "${speexdsp_SOURCE_DIR}/libspeexdsp/resample.c")
+target_include_directories(speex_resampler PUBLIC "${speexdsp_SOURCE_DIR}/include/speex"
+    PRIVATE "${speexdsp_SOURCE_DIR}/libspeexdsp")
+target_compile_definitions(speex_resampler PUBLIC OUTSIDE_SPEEX RANDOM_PREFIX=winamp_opus
+    PRIVATE FLOATING_POINT)
 
 # opusfile 0.12 has no CMake build. These are exactly its core libopusfile
 # sources from Makefile.am; omit opusurl/HTTP/TLS and their dependencies.
@@ -62,7 +75,7 @@ target_include_directories(opusfile PUBLIC "${opusfile_SOURCE_DIR}/include")
 target_compile_definitions(opusfile PRIVATE _CRT_SECURE_NO_WARNINGS OP_HAVE_LRINTF)
 target_link_libraries(opusfile PUBLIC Ogg::ogg opus)
 
-foreach(dependency IN ITEMS ogg opus opusfile)
+foreach(dependency IN ITEMS ogg opus opusfile speex_resampler)
     set_target_properties(${dependency} PROPERTIES
         FOLDER "Dependencies"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib/$<CONFIG>")
@@ -72,3 +85,4 @@ file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/licenses")
 configure_file("${ogg_SOURCE_DIR}/COPYING" "${CMAKE_BINARY_DIR}/licenses/libogg.txt" COPYONLY)
 configure_file("${opus_SOURCE_DIR}/COPYING" "${CMAKE_BINARY_DIR}/licenses/libopus.txt" COPYONLY)
 configure_file("${opusfile_SOURCE_DIR}/COPYING" "${CMAKE_BINARY_DIR}/licenses/libopusfile.txt" COPYONLY)
+configure_file("${speexdsp_SOURCE_DIR}/COPYING" "${CMAKE_BINARY_DIR}/licenses/speexdsp.txt" COPYONLY)

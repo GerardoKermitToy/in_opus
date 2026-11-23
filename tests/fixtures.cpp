@@ -32,7 +32,8 @@ void Packet(OggStream& stream, std::ofstream& output, unsigned char* data,
 }
 } // namespace
 
-void MakeOpus(const std::filesystem::path& path, int channels, int frames, int serial) {
+void MakeOpus(const std::filesystem::path& path, int channels, int frames, int serial,
+    const std::vector<std::string>& extra_tags, int header_gain_q8) {
     constexpr int rate = winamp_opus::kSampleRate;
     const int family = channels > 2 ? 1 : 0;
     int streams = 0, coupled = 0, error = 0;
@@ -49,7 +50,7 @@ void MakeOpus(const std::filesystem::path& path, int channels, int frames, int s
     std::vector<unsigned char> head{'O','p','u','s','H','e','a','d',1,static_cast<unsigned char>(channels)};
     Le(head, preskip, 2);
     Le(head, 44100, 4); // Informational source rate; Opus output is still 48000 Hz.
-    Le(head, 0, 2);
+    Le(head, static_cast<unsigned>(header_gain_q8), 2);
     head.push_back(static_cast<unsigned char>(family));
     if (family) {
         head.push_back(static_cast<unsigned char>(streams));
@@ -61,7 +62,8 @@ void MakeOpus(const std::filesystem::path& path, int channels, int frames, int s
     const std::string vendor = "Winamp Opus tests";
     Le(tags, static_cast<unsigned>(vendor.size()), 4);
     tags.insert(tags.end(), vendor.begin(), vendor.end());
-    const std::array<std::string, 3> comments{"TITLE=Проверка Opus", "ARTIST=Тест", "ALBUM=Test album"};
+    std::vector<std::string> comments{"TITLE=Проверка Opus", "ARTIST=Тест", "ALBUM=Test album"};
+    comments.insert(comments.end(), extra_tags.begin(), extra_tags.end());
     Le(tags, static_cast<unsigned>(comments.size()), 4);
     for (const auto& comment : comments) {
         Le(tags, static_cast<unsigned>(comment.size()), 4);

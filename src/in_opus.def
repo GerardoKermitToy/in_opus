@@ -2,3 +2,6 @@ LIBRARY in_opus
 EXPORTS
     winampGetInModule2
     winampGetExtendedFileInfoW
+    winampGetExtendedFileInfo
+    winampUseUnifiedFileInfoDlg
+    winampAddUnifiedFileInfoPane
