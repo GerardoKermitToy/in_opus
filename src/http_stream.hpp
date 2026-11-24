@@ -38,6 +38,8 @@ public:
     bool Seek(std::int64_t offset, int origin) noexcept;
     std::int64_t Tell() const noexcept { return position_; }
     std::int64_t Size() const noexcept { return size_; }
+    // Complete source bytes, before peeling any RIFF/WAVE wrapper.
+    std::int64_t SourceSize() const noexcept { return source_size_; }
     bool Seekable() const noexcept { return opened_ && (!http_ || http_seekable_); }
     bool Radio() const noexcept { return opened_ && http_ && !http_seekable_; }
     void Cancel() noexcept;
@@ -82,7 +84,7 @@ private:
     PlaybackSettings settings_;
     StationInfo station_;
     std::vector<unsigned char> memory_, prefix_, network_buffer_;
-    std::int64_t position_ = 0, size_ = -1, base_offset_ = 0, response_left_ = -1;
+    std::int64_t position_ = 0, size_ = -1, source_size_ = -1, base_offset_ = 0, response_left_ = -1;
     std::size_t replay_at_ = 0;
     int network_at_ = 0, network_used_ = 0, probe_bytes_ = 0, probe_limit_ = 0;
     int icy_interval_ = 0, icy_left_ = 0;

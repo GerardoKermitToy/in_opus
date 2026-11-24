@@ -278,6 +278,9 @@ void Dll(HMODULE library, const std::filesystem::path& directory) {
     Check(set(path.c_str(), "title", L"New title") && set(path.c_str(), "artist", L"New artist") && write(), "save tags while audio is open");
     int duration = -1; input->GetFileInfo(nullptr, text, &duration);
     Check(std::wstring(text) == L"New artist - New title" && duration > 0, "active GetFileInfo immediately reflects saved tags");
+    Check(metadata(nullptr, "formatinformation", text, 2048) &&
+        std::wstring(text).find(L"File size: " + std::to_wstring(std::filesystem::file_size(path)) + L" bytes") != std::wstring::npos,
+        "active technical metadata reflects the new container size without reopening audio");
     Pump(40); Check(titleMessages == 1, "exactly one changed-tags title notification");
     Check(opens == initialOpens && flushes == initialFlushes && writes == 0 && closes == 0 && input->IsPaused(),
         "tag editing does not reopen flush decode or unpause audio");

@@ -36,6 +36,13 @@ add_dependencies(dialog_tests in_opus)
 add_test(NAME file_info_dialog COMMAND dialog_tests "$<TARGET_FILE:in_opus>" "${CMAKE_CURRENT_BINARY_DIR}/dialog-data")
 set_tests_properties(file_info_dialog PROPERTIES TIMEOUT 30)
 
+add_executable(tag_editor_tests tag_editor_tests.cpp ../src/metadata.cpp)
+target_link_libraries(tag_editor_tests PRIVATE test_fixtures user32 gdi32 advapi32 comctl32)
+target_compile_options(tag_editor_tests PRIVATE /W4 /permissive- /utf-8)
+add_dependencies(tag_editor_tests in_opus)
+add_test(NAME unified_tag_editor COMMAND tag_editor_tests "$<TARGET_FILE:in_opus>" "${CMAKE_CURRENT_BINARY_DIR}/unified-editor-data")
+set_tests_properties(unified_tag_editor PROPERTIES TIMEOUT 90)
+
 add_executable(multichannel_tests multichannel_tests.cpp)
 target_link_libraries(multichannel_tests PRIVATE test_fixtures)
 target_compile_options(multichannel_tests PRIVATE /W4 /permissive- /utf-8)

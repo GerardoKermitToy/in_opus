@@ -1,4 +1,4 @@
-# Advanced Opus decoding — 1.5.0
+# Advanced Opus decoding — 1.5.1
 
 ## Defaults and scope
 

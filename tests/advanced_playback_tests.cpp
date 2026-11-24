@@ -160,7 +160,7 @@ int wmain(int argc, wchar_t** argv) {
         Check(MetadataValue(info, "year", value) && value == L"2026", "extended date alias");
         Check(MetadataValue(info, "genre", value) && value == L"Test genre", "extended arbitrary text tag");
         Check(MetadataValue(info, "replaygain_track_gain", value) && value == L"+4.00", "R128 to standard ReplayGain reference/format");
-        Check(MetadataValue(info, "formatinformation", value) && value.find(L'\r') == std::wstring::npos, "unified metadata line endings");
+        Check(MetadataValue(info, "formatinformation", value) && value.find(L"\r\n") != std::wstring::npos, "native Format Info uses Windows line endings");
         Server server(Bytes(path), Bytes(vorbis));
         Check(HasOpusContent(server.Url(L"/stream").c_str()), "HTTP Opus content probe");
         Check(!HasOpusContent(server.Url(L"/vorbis").c_str()), "HTTP probe must not claim Vorbis");

@@ -135,12 +135,13 @@ int wmain(int argc, wchar_t** argv) {
             parent.value, nullptr, GetModuleHandleW(nullptr), nullptr);
         wchar_t name[100]{};
         const auto pane = pane_export(0, path.c_str(), parent.value, name, 100);
-        Check(pane && !GetPropW(parent.value, L"INBUILT_NOWRITEINFO"), "tag-write API must leave the host basic pane editable");
-        Check(Text(pane, IDC_INFO_TAGS).find(L"Ogg Opus") != std::wstring::npos, "unified Opus information");
-        // The extra technical pane is read-only; the host owns its editable basic
-        // fields now that this DLL implements the metadata setter/write exports.
-        Check((GetWindowLongPtrW(GetDlgItem(pane, IDC_INFO_TAGS), GWL_STYLE) & ES_READONLY) != 0,
-            "technical pane stays read-only");
+        Check(pane && GetPropW(parent.value, L"INBUILT_NOWRITEINFO"), "Advanced owns the unified commit transaction");
+        Check(std::wstring(name) == L"Advanced" && GetDlgItem(pane, IDC_TAG_LIST), "one native Advanced editor");
+        Check(!GetDlgItem(pane, IDC_INFO_TAGS) && !GetDlgItem(pane, IDC_INFO_PATH) &&
+            !GetDlgItem(pane, IDC_EDIT_TAGS) && !GetDlgItem(pane, IDOK) && !GetDlgItem(pane, IDCANCEL),
+            "Advanced does not duplicate host technical fields, path, launchers or OK/Cancel");
+        Check((GetWindowLongPtrW(GetDlgItem(pane, IDC_TAG_VALUE), GWL_STYLE) & ES_MULTILINE) != 0,
+            "Advanced uses a multiline value editor");
         Check((GetWindowLongPtrW(edit, GWL_STYLE) & ES_READONLY) == 0 && IsWindowEnabled(combo),
             "unified pane must not freeze sibling host controls");
         Check(pane_export(1, path.c_str(), parent.value, name, 100) == nullptr, "one unified Opus pane");

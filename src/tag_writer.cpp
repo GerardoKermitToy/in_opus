@@ -380,6 +380,7 @@ struct RequestedTag {
     std::string name;
     std::string canonical;
     std::string value;
+    bool remove = false;
 };
 
 bool ToUtf8Checked(const std::wstring& input, std::string& output, std::wstring& error) {
@@ -421,6 +422,7 @@ bool PrepareRequestedTags(const OpusTagChanges& tags, std::vector<RequestedTag>&
             return Fail(error, L"Requested Ogg comment field names must be unique ignoring case.");
         }
         if (!ToUtf8Checked(tag.second, converted.value, error)) return false;
+        converted.remove = converted.value.empty();
         if (converted.name.size() > kMaxHeaderBytes || converted.value.size() > kMaxHeaderBytes ||
             converted.name.size() + 1 > kMaxHeaderBytes - converted.value.size()) {
             return Fail(error, L"A requested Ogg comment is too large.");
@@ -445,66 +447,83 @@ struct KeptComment {
     std::uint32_t size = 0;
 };
 
-bool BuildCommentPacket(const std::vector<Byte>& original,
-    const std::vector<RequestedTag>& requested, std::vector<Byte>& replacement, std::wstring& error) {
-    constexpr std::size_t prefix = 8;
-    const bool validPrefix = original.size() >= prefix && std::memcmp(original.data(), "OpusTags", 8) == 0;
-    if (!validPrefix) return Fail(error, L"The Ogg stream has an invalid comment header packet.");
+bool WideText(const Byte* data, std::size_t size, std::wstring& value) {
+    if (size > INT_MAX || std::find(data, data + size, Byte(0)) != data + size) return false;
+    if (!size) { value.clear(); return true; }
+    const int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        reinterpret_cast<const char*>(data), static_cast<int>(size), nullptr, 0);
+    if (count <= 0) return false;
+    value.resize(count);
+    return MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(data),
+        static_cast<int>(size), value.data(), count) == count;
+}
 
+bool BuildCommentPacket(const std::vector<Byte>& original,
+    const std::vector<RequestedTag>& requested, std::vector<Byte>& replacement, std::wstring& error,
+    bool document = false) {
+    constexpr std::size_t prefix = 8;
+    if (original.size() < prefix || std::memcmp(original.data(), "OpusTags", 8))
+        return Fail(error, L"The Ogg stream has an invalid comment header packet.");
     std::size_t at = prefix;
     std::uint32_t vendorLength = 0;
-    if (!TakeLe32(original, at, vendorLength) || vendorLength > original.size() - at) {
+    if (!TakeLe32(original, at, vendorLength) || vendorLength > original.size() - at)
         return Fail(error, L"The Ogg comment header has an invalid vendor string.");
-    }
     const std::size_t vendorAt = at;
     at += vendorLength;
     std::uint32_t count = 0;
-    if (!TakeLe32(original, at, count) || count > kMaxCommentEntries) {
+    if (!TakeLe32(original, at, count) || count > kMaxCommentEntries)
         return Fail(error, L"The Ogg comment header has too many or malformed fields.");
-    }
 
-    std::unordered_map<std::string, std::size_t> replaced;
-    replaced.reserve(requested.size());
-    for (std::size_t i = 0; i < requested.size(); ++i) replaced.emplace(requested[i].canonical, i);
-    std::vector<unsigned> matches(requested.size(), 0);
-    std::vector<bool> same(requested.size(), false);
-
+    struct Group {
+        std::vector<const RequestedTag*> fields;
+        std::size_t matches = 0;
+        bool same = true;
+    };
+    std::unordered_map<std::string, Group> groups;
+    for (const auto& tag : requested) groups[tag.canonical].fields.push_back(&tag);
     std::vector<KeptComment> kept;
     kept.reserve(std::min<std::size_t>(count, 4096));
     std::string key;
     for (std::uint32_t index = 0; index != count; ++index) {
         std::uint32_t length = 0;
-        if (!TakeLe32(original, at, length) || length > original.size() - at) {
+        if (!TakeLe32(original, at, length) || length > original.size() - at)
             return Fail(error, L"The Ogg comment header has a truncated field.");
-        }
         const std::size_t fieldAt = at;
         at += length;
-        const auto found = IsFieldName(original.data() + fieldAt, length, key) && !IsArtworkKey(key)
-            ? replaced.find(key) : replaced.end();
-        if (found == replaced.end()) kept.push_back({fieldAt, length});
+        auto found = IsFieldName(original.data() + fieldAt, length, key) && !IsArtworkKey(key)
+            ? groups.find(key) : groups.end();
+        const Byte* field = original.data() + fieldAt;
+        const Byte* equal = std::find(field, field + length, Byte('='));
+        const Byte* value = equal == field + length ? equal : equal + 1;
+        const auto bytes = static_cast<std::size_t>(field + length - value);
+        // An editor never owns opaque comments, even if they share an edited name.
+        std::wstring ignored;
+        if (found != groups.end() && document && !WideText(value, bytes, ignored)) found = groups.end();
+        if (found == groups.end()) kept.push_back({fieldAt, length});
         else {
-            const auto requestIndex = found->second;
-            ++matches[requestIndex];
-            const Byte* field = original.data() + fieldAt;
-            const Byte* value = std::find(field, field + length, Byte('=')) + 1;
-            const auto bytes = static_cast<std::size_t>(field + length - value);
-            same[requestIndex] = bytes == requested[requestIndex].value.size() &&
-                (bytes == 0 || std::memcmp(value, requested[requestIndex].value.data(), bytes) == 0);
+            auto& group = found->second;
+            const auto match = group.matches++;
+            if (match >= group.fields.size()) group.same = false;
+            else {
+                const auto& wanted = *group.fields[match];
+                group.same &= !wanted.remove && bytes == wanted.value.size() &&
+                    (bytes == 0 || std::memcmp(value, wanted.value.data(), bytes) == 0) &&
+                    (!document || (wanted.name.size() == static_cast<std::size_t>(equal - field) &&
+                        std::memcmp(field, wanted.name.data(), wanted.name.size()) == 0));
+            }
         }
     }
     std::size_t appended = 0;
-    for (const auto& tag : requested) {
-        if (!tag.value.empty()) ++appended;
-    }
+    for (const auto& tag : requested) if (!tag.remove) ++appended;
     const std::size_t totalFields = kept.size() + appended;
-    if (totalFields > kMaxCommentEntries) {
+    if (totalFields > kMaxCommentEntries)
         return Fail(error, L"Too many Ogg comment fields after replacement.");
-    }
-    // A same-value patch is not a file edit. Keep the original packet byte for
-    // byte (including case, order and padding) unless a field actually changes.
     bool changed = false;
-    for (std::size_t i = 0; i < requested.size(); ++i)
-        changed |= requested[i].value.empty() ? matches[i] != 0 : matches[i] != 1 || !same[i];
+    for (const auto& item : groups) {
+        const auto& group = item.second;
+        changed |= group.fields.front()->remove ? group.matches != 0 :
+            group.matches != group.fields.size() || !group.same;
+    }
     if (!changed) { replacement = original; return true; }
     replacement.clear();
     replacement.reserve(std::min<std::size_t>(kMaxHeaderBytes, original.size() + requested.size() * 8));
@@ -512,13 +531,11 @@ bool BuildCommentPacket(const std::vector<Byte>& original,
         !AppendLe32Bounded(replacement, vendorLength, error) ||
         !AppendBounded(replacement, original.data() + vendorAt, vendorLength, error) ||
         !AppendLe32Bounded(replacement, static_cast<std::uint32_t>(totalFields), error)) return false;
-
-    for (const KeptComment& field : kept) {
+    for (const auto& field : kept)
         if (!AppendLe32Bounded(replacement, field.size, error) ||
             !AppendBounded(replacement, original.data() + field.at, field.size, error)) return false;
-    }
-    for (const RequestedTag& tag : requested) {
-        if (tag.value.empty()) continue;
+    for (const auto& tag : requested) {
+        if (tag.remove) continue;
         const std::size_t bytes = tag.name.size() + 1 + tag.value.size();
         if (bytes > std::numeric_limits<std::uint32_t>::max() ||
             !AppendLe32Bounded(replacement, static_cast<std::uint32_t>(bytes), error) ||
@@ -527,9 +544,7 @@ bool BuildCommentPacket(const std::vector<Byte>& original,
         if (!AppendBounded(replacement, &equals, 1, error) ||
             !AppendBounded(replacement, reinterpret_cast<const Byte*>(tag.value.data()), tag.value.size(), error)) return false;
     }
-    const std::size_t padding = original.size() - at;
-    if (!AppendBounded(replacement, original.data() + at, padding, error)) return false;
-    return true;
+    return AppendBounded(replacement, original.data() + at, original.size() - at, error);
 }
 
 struct LinkPlan {
@@ -908,17 +923,84 @@ void RestoreBestEffortMetadata(const std::wstring& path, const FileSnapshot& ori
     SetFileAttributesW(path.c_str(), attributes);
 }
 
+
+bool ExtractFields(const LinkPlan& plan, OpusTagFields& fields, std::wstring& error) {
+    std::size_t at = 8;
+    std::uint32_t vendor = 0, count = 0;
+    if (!TakeLe32(plan.comment, at, vendor) || vendor > plan.comment.size() - at)
+        return Fail(error, L"Invalid Opus vendor data.");
+    at += vendor;
+    if (!TakeLe32(plan.comment, at, count)) return Fail(error, L"Invalid Opus comment data.");
+    fields.clear();
+    for (std::uint32_t i = 0; i != count; ++i) {
+        std::uint32_t size = 0;
+        if (!TakeLe32(plan.comment, at, size) || size > plan.comment.size() - at)
+            return Fail(error, L"Invalid Opus comment data.");
+        const Byte* first = plan.comment.data() + at;
+        at += size;
+        std::string canonical;
+        if (!IsFieldName(first, size, canonical) || IsArtworkKey(canonical)) continue;
+        const Byte* equal = std::find(first, first + size, Byte('='));
+        std::wstring value;
+        if (WideText(equal + 1, static_cast<std::size_t>(first + size - equal - 1), value))
+            fields.push_back({std::string(reinterpret_cast<const char*>(first),
+                static_cast<std::size_t>(equal - first)), std::move(value)});
+    }
+    return true;
+}
+
+bool PrepareDocumentEdits(const OpusTagFields& original, const OpusTagFields& edited,
+    std::vector<RequestedTag>& requested, std::wstring& error) {
+    if (edited.size() > kMaxCommentEntries) return Fail(error, L"Too many requested Ogg comment fields.");
+    std::map<std::string, OpusTagFields> before, after;
+    for (const auto& field : original) {
+        std::string canonical;
+        if (!IsFieldName(field.name, canonical)) return Fail(error, L"An Ogg comment field name is invalid.");
+        before[canonical].push_back(field);
+    }
+    std::size_t total = 0;
+    std::vector<RequestedTag> converted;
+    for (const auto& field : edited) {
+        RequestedTag tag;
+        tag.name = field.name;
+        if (!IsFieldName(tag.name, tag.canonical)) return Fail(error, L"An Ogg comment field name is invalid.");
+        if (IsArtworkKey(tag.canonical)) return Fail(error, L"Embedded artwork comments are preserved and cannot be edited here.");
+        if (!ToUtf8Checked(field.value, tag.value, error)) return false;
+        if (tag.name.size() > kMaxHeaderBytes || tag.value.size() > kMaxHeaderBytes ||
+            tag.name.size() + 1 > kMaxHeaderBytes - tag.value.size())
+            return Fail(error, L"A requested Ogg comment is too large.");
+        const std::size_t bytes = 4 + tag.name.size() + 1 + tag.value.size();
+        if (bytes > kMaxHeaderBytes - total) return Fail(error, L"Requested Ogg comments exceed the 16 MiB safety limit.");
+        total += bytes;
+        after[tag.canonical].push_back(field);
+        converted.push_back(std::move(tag));
+    }
+    std::unordered_set<std::string> changed;
+    for (const auto& item : after) {
+        const auto found = before.find(item.first);
+        if (found == before.end() || found->second != item.second) changed.insert(item.first);
+    }
+    requested.clear();
+    for (auto& tag : converted) if (changed.count(tag.canonical)) requested.push_back(std::move(tag));
+    for (const auto& item : before) if (!after.count(item.first))
+        requested.push_back({item.first, item.first, {}, true});
+    return true;
+}
+
 } // namespace
 
 namespace {
 bool WriteTagsImpl(const wchar_t* path, int link, const OpusTagChanges& tags,
-    const std::vector<OpusTagChanges>* perLink, std::wstring& error, bool* changed) {
+    const std::vector<OpusTagChanges>* perLink, std::wstring& error, bool* changed,
+    const OpusTagDocument* expected = nullptr, const OpusTagFields* edited = nullptr) {
     error.clear();
     if (changed) *changed = false;
     try {
         std::lock_guard<std::mutex> guard(writeMutex);
         std::vector<RequestedTag> requested;
-        if (!PrepareRequestedTags(tags, requested, error)) return false;
+        if (expected && edited) {
+            if (!PrepareDocumentEdits(expected->fields, *edited, requested, error)) return false;
+        } else if (!PrepareRequestedTags(tags, requested, error)) return false;
         std::vector<std::vector<RequestedTag>> patches;
         if (perLink) {
             if (perLink->size() > kMaxLogicalStreams) return Fail(error, L"Too many requested Opus links.");
@@ -935,7 +1017,27 @@ bool WriteTagsImpl(const wchar_t* path, int link, const OpusTagChanges& tags,
         if (!OpenSafeSource(sourcePath, source, original, error)) return false;
 
         std::vector<LinkPlan> plans;
-        if (!ScanInput(source.Get(), requested, plans, error, perLink ? &patches : nullptr)) return false;
+        const std::vector<RequestedTag> noChanges;
+        if (!ScanInput(source.Get(), expected ? noChanges : requested, plans, error, perLink ? &patches : nullptr)) return false;
+        if (expected) {
+            if (link < 0 || static_cast<std::size_t>(link) >= plans.size())
+                return Fail(error, L"The requested Ogg link does not exist.");
+            auto& plan = plans[link];
+            OpusTagFields current;
+            if (!ExtractFields(plan, current, error)) return false;
+            if (plan.serial != expected->serial || current != expected->fields)
+                return Fail(error, L"The file's tags changed after this editor was opened. Reopen File Information before saving.");
+            std::vector<Byte> replacement;
+            if (!BuildCommentPacket(plan.comment, requested, replacement, error, true)) return false;
+            std::size_t retained = 0;
+            for (const auto& item : plans) {
+                const std::size_t bytes = item.identification.size() + (&item == &plan ? replacement.size() : item.comment.size());
+                if (bytes > kMaxHeaderBytes - retained) return Fail(error, L"Ogg headers and comments exceed the 16 MiB safety limit.");
+                retained += bytes;
+            }
+            plan.changed = replacement != plan.comment;
+            plan.comment = std::move(replacement);
+        }
         if (!FinalizePlans(plans, link, error)) return false;
         if (!CurrentSnapshot(source.Get(), original, error)) return false;
         if (std::none_of(plans.begin(), plans.end(), [](const LinkPlan& p) { return p.selected; })) return true;
@@ -972,6 +1074,32 @@ bool WriteOpusTagLinks(const wchar_t* path, const std::vector<OpusTagChanges>& c
     return WriteTagsImpl(path, -1, {}, &changes, error, changed);
 }
 
+bool ReadOpusTagDocument(const wchar_t* path, int link, OpusTagDocument& document, std::wstring& error) {
+    error.clear();
+    try {
+        std::wstring absolute;
+        if (!AbsolutePath(path, absolute, error)) return false;
+        Handle source;
+        FileSnapshot snapshot{};
+        if (!OpenSafeSource(absolute, source, snapshot, error)) return false;
+        std::vector<LinkPlan> plans;
+        if (!ScanInput(source.Get(), {}, plans, error)) return false;
+        if (link < 0 || static_cast<std::size_t>(link) >= plans.size())
+            return Fail(error, L"The requested Ogg link does not exist.");
+        OpusTagDocument result;
+        result.link = link;
+        result.serial = plans[link].serial;
+        if (!ExtractFields(plans[link], result.fields, error) || !CurrentSnapshot(source.Get(), snapshot, error)) return false;
+        document = std::move(result);
+        return true;
+    } catch (...) { return Fail(error, L"Cannot read the Ogg comments for editing."); }
+}
+
+bool WriteOpusTagDocument(const wchar_t* path, const OpusTagDocument& original,
+    const OpusTagFields& edited, std::wstring& error, bool* changed) {
+    return WriteTagsImpl(path, original.link, {}, nullptr, error, changed, &original, &edited);
+}
+
 bool ReadOpusTagLinks(const wchar_t* path, std::vector<OpusTagLink>& links, std::wstring& error) {
     links.clear();
     error.clear();
@@ -986,19 +1114,10 @@ bool ReadOpusTagLinks(const wchar_t* path, std::vector<OpusTagLink>& links, std:
         if (!ScanInput(source.Get(), noChanges, plans, error) || !CurrentSnapshot(source.Get(), original, error)) return false;
         std::vector<OpusTagLink> result;
         result.reserve(plans.size());
-        auto wide = [](const Byte* p, std::size_t size, std::wstring& value) {
-            if (size > INT_MAX || std::find(p, p + size, Byte(0)) != p + size) return false;
-            if (!size) { value.clear(); return true; }
-            const int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
-                reinterpret_cast<const char*>(p), static_cast<int>(size), nullptr, 0);
-            if (count <= 0) return false;
-            value.resize(count);
-            return MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, reinterpret_cast<const char*>(p),
-                static_cast<int>(size), value.data(), count) == count;
-        };
         for (const auto& plan : plans) {
             OpusTagLink link;
             link.serial = plan.serial;
+            link.file_size = (static_cast<std::int64_t>(original.info.nFileSizeHigh) << 32) | original.info.nFileSizeLow;
             const int gain = plan.identification[16] | (int(plan.identification[17]) << 8);
             link.header_gain_q8 = gain >= 32768 ? gain - 65536 : gain;
             std::size_t at = 8;
@@ -1006,7 +1125,7 @@ bool ReadOpusTagLinks(const wchar_t* path, std::vector<OpusTagLink>& links, std:
             if (!TakeLe32(plan.comment, at, size) || size > plan.comment.size() - at)
                 return Fail(error, L"Invalid Opus vendor data.");
             // Ill-formed unedited text is preserved on disk, never normalized.
-            wide(plan.comment.data() + at, size, link.vendor);
+            WideText(plan.comment.data() + at, size, link.vendor);
             at += size;
             if (!TakeLe32(plan.comment, at, count)) return Fail(error, L"Invalid Opus comment data.");
             for (std::uint32_t i = 0; i != count; ++i) {
@@ -1017,7 +1136,7 @@ bool ReadOpusTagLinks(const wchar_t* path, std::vector<OpusTagLink>& links, std:
                     const Byte* first = plan.comment.data() + at;
                     const Byte* value = std::find(first, first + size, Byte('=')) + 1;
                     std::wstring text;
-                    if (wide(value, static_cast<std::size_t>(first + size - value), text)) {
+                    if (WideText(value, static_cast<std::size_t>(first + size - value), text)) {
                         auto& stored = link.tags[name];
                         if (!stored.empty() && !text.empty()) stored += L"; ";
                         stored += text;

@@ -7,6 +7,7 @@
 namespace winamp_opus::opus_native {
 inline constexpr std::size_t MaxPacketBytes = 1024 * 1024;
 struct Header {
+    int version = -1;
     int channels = 0, family = 0, streams = 0, coupled = 0;
     int preskip = 0, gain_q8 = 0;
     std::uint32_t input_rate = 0;

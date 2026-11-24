@@ -1,4 +1,4 @@
-# Winamp Opus Input 1.5.0
+# Winamp Opus Input 1.5.1
 
 A 32-bit input plugin for Ogg Opus files and HTTP/HTTPS radio in Winamp 5.9.
 
@@ -7,6 +7,12 @@ A 32-bit input plugin for Ogg Opus files and HTTP/HTTPS radio in Winamp 5.9.
 - `.opus` and `.opu`, plus `.ogg` and `.oga` containing Opus; Vorbis is not claimed.
 - HTTP/HTTPS Ogg Opus radio with station information and chained-stream tags.
 - Unicode paths and tags; standard Winamp metadata, safe local OpusTags editing and rating.
+- Winamp-owned **File Info → Basic Info / Advanced** with one native Name/Value
+  editor, Add New / Delete / Delete All and bidirectional field synchronization.
+  Repeated tags, empty values and long/multiline Unicode text remain separate;
+  OK commits and Cancel discards drafts without reencoding audio.
+- Historical Format Info layout plus known Opus header/decoder facts, with scrolling
+  in the existing host field rather than a duplicate technical pane.
 - Integer/IEEE-float extended-read PCM sessions with seeking and cancellation.
 - Optional Winamp ReplayGain/proxy snapshots and independent language-pack support.
 - Original 1–8 channels, stereo/mono/quad downmix, explicit DS/DS2 matrices and codec-order compatibility.
@@ -24,8 +30,10 @@ A 32-bit input plugin for Ogg Opus files and HTTP/HTTPS radio in Winamp 5.9.
 
 Defaults remain **48 kHz / 16-bit, source channels, header gain only, dithering on**.
 Custom processing, recording, reconnect, remote seeking and host ReplayGain inheritance
-are opt-in. The technical unified pane is read-only; Winamp basic fields and the
-local tag editor can write supported Opus comments. See [feature transfer and
+are opt-in. The default File Info window uses Winamp's Basic Info and the plugin's
+editable Advanced tab. Standard fields stay enabled even without tags; embedded
+artwork is preserved but not edited by this plugin. The standalone editor remains
+available when unified File Info is disabled. See [feature transfer and
 conflict choices](docs/FEATURE_TRANSFER.md).
 
 ## Requirements
@@ -37,13 +45,13 @@ conflict choices](docs/FEATURE_TRANSFER.md).
 ## Installation
 
 1. Close Winamp completely.
-2. Copy `dist/package-1.5.0/Plugins/in_opus.dll` to the `Plugins` folder beside `winamp.exe`.
+2. Copy `dist/Plugins/in_opus.dll` to the `Plugins` folder beside `winamp.exe`.
 3. Restart Winamp. The plugin appears under **Preferences → Plug-ins → Input**.
 
 Alternatively, run the installer, which backs up an existing plugin:
 
 ```powershell
-.\tools\Install-Plugin.ps1 -PluginPath .\dist\package-1.5.0\Plugins\in_opus.dll
+.\tools\Install-Plugin.ps1 -PluginPath .\dist\Plugins\in_opus.dll
 ```
 
 Installing into Program Files normally requires administrator privileges.

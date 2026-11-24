@@ -292,7 +292,7 @@ bool InputStream::OpenLocal(const wchar_t* path) {
     if (GetFileType(file) != FILE_TYPE_DISK || !GetFileSizeEx(file, &physical) || physical.QuadPart < 0) {
         SetError(L"Cannot determine the audio file size."); return false;
     }
-    size_ = physical.QuadPart;
+    size_ = source_size_ = physical.QuadPart;
     unsigned char header[12]{};
     if (size_ >= 12) {
         if (!ReadFileAt(0, header, sizeof(header))) return false;
@@ -449,7 +449,7 @@ bool InputStream::OpenHttp(const wchar_t* path) {
         icy_interval_ = icy_left_ = static_cast<int>(metaint);
         const auto length = Header(request, L"Content-Length");
         if (!length.empty() && !Number(length, response_left_)) { SetError(L"Invalid HTTP content length."); return false; }
-        size_ = icy_interval_ ? -1 : response_left_;
+        size_ = source_size_ = icy_interval_ ? -1 : response_left_;
         etag_ = Header(request, L"ETag");
         if (etag_.size() < 2 || etag_.front() != L'"' || etag_.back() != L'"' || Controls(etag_)) etag_.clear();
         last_modified_ = Header(request, L"Last-Modified");

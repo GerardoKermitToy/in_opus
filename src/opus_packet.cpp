@@ -174,6 +174,7 @@ bool ParseHeader(const unsigned char* data, std::size_t size, Header& result) no
         Header h;
         if (!data || size < 19 || size > 65025 || std::memcmp(data, "OpusHead", 8) ||
             data[8] < 1 || data[8] > 15 || !data[9]) return false;
+        h.version = data[8];
         h.channels = data[9]; h.preskip = Le16(data + 10); h.input_rate = Le32(data + 12);
         const int gain = Le16(data + 16);
         h.gain_q8 = gain >= 32768 ? gain - 65536 : gain;

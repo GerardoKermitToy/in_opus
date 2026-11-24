@@ -477,6 +477,10 @@ class NativeReader final : public NativeOpus {
             info_.current_link = link_index; info_.serial = logical_.serial;
             info_.source_channels = logical_.header.channels;
             info_.source_sample_rate = static_cast<int>((std::min)(static_cast<std::uint32_t>(INT_MAX), logical_.header.input_rate));
+            info_.format_version = logical_.header.version;
+            info_.pre_skip48 = logical_.header.preskip;
+            info_.stream_count = logical_.header.streams;
+            info_.coupled_count = logical_.header.coupled;
             info_.header_gain_q8 = logical_.header.gain_q8;
             info_.track_gain_q8 = logical_.tags.track_gain_q8; info_.album_gain_q8 = logical_.tags.album_gain_q8;
             info_.has_track_gain = logical_.tags.has_track_gain; info_.has_album_gain = logical_.tags.has_album_gain;

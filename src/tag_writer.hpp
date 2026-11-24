@@ -7,11 +7,29 @@
 
 namespace winamp_opus {
 using OpusTagChanges = std::map<std::string, std::wstring>;
+struct OpusTagField {
+    std::string name;
+    std::wstring value;
+    bool operator==(const OpusTagField& other) const { return name == other.name && value == other.value; }
+    bool operator!=(const OpusTagField& other) const { return !(*this == other); }
+};
+using OpusTagFields = std::vector<OpusTagField>;
+// The editor keeps ordered, repeated text fields separate from the display map.
+// Opaque comments and artwork never enter this projection and remain on disk.
+struct OpusTagDocument {
+    int link = 0;
+    std::uint32_t serial = 0;
+    OpusTagFields fields;
+};
+bool ReadOpusTagDocument(const wchar_t* path, int link, OpusTagDocument&, std::wstring& error);
+bool WriteOpusTagDocument(const wchar_t* path, const OpusTagDocument& original,
+    const OpusTagFields& edited, std::wstring& error, bool* changed = nullptr);
 struct OpusTagLink {
     OpusTagChanges tags; // Lower-case names; artwork deliberately excluded.
     std::wstring vendor;
     int header_gain_q8 = 0;
     std::uint32_t serial = 0;
+    std::int64_t file_size = -1;
 };
 // Validate Ogg framing, checksums and stream lifecycle without decoding audio.
 // Comments with duplicate names are joined with "; " for display only.

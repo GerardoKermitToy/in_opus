@@ -691,6 +691,15 @@ void FacadePipelineTests(const std::filesystem::path& directory) {
         for (int rate : {0,48000}) {
             PlaybackSettings settings; settings.sample_rate = rate; settings.bits = 24; settings.dither = false;
             Decoder decoder; Check(decoder.Open(path.c_str(), nullptr, settings) && decoder.NativeActive() && decoder.SampleRate() == 96000, "public Decoder QEXT/native chain activation");
+            const auto& technical = decoder.Info();
+            Check(technical.file_size == static_cast<std::int64_t>(std::filesystem::file_size(path)), "native technical source size");
+            Check(technical.format_version == 1, "native technical OpusHead version");
+            Check(technical.pre_skip48 >= 0, "native technical OpusHead pre-skip");
+            Check(technical.stream_count > 0, "native technical OpusHead stream count");
+            Check(technical.total_frames == total, "native technical 48-kHz granule timeline");
+            const int first_link_rate = name == std::wstring(L"mixed.opus") ? 48000 : 96000;
+            Check(technical.decoded_rate == first_link_rate && technical.output_rate == 96000,
+                "native technical actual link rate and normalized output rate");
             Check(decoder.SetOutputMode(OutputMode::Stereo), "pipeline stereo output"); decoder.SetGain(settings, false);
             PcmPipeline pipeline(decoder, settings); Check(pipeline.Ready(), "native-aware PCM pipeline ready");
             std::array<unsigned char, 576 * kMaxChannels * 4> packed{};
@@ -704,6 +713,11 @@ void FacadePipelineTests(const std::filesystem::path& directory) {
             };
             const int ratio = rate ? 1 : 2;
             Check(drain() == total * ratio && pipeline.PositionFrames() == total, "native0 and explicit48k pipeline exact duration");
+            if (name == std::wstring(L"mixed.opus")) {
+                Check(decoder.SeekFrame(16013) && decoder.Info().decoded_rate == 96000 &&
+                    decoder.Info().output_rate == 96000 && decoder.Info().qext,
+                    "native technical metadata follows the QEXT link after crossing a mixed-rate chain");
+            }
             Check(decoder.SeekFrame(137), "public arbitrary48k frame seek"); pipeline.ResetAfterSeek();
             Check(pipeline.PositionFrames() == 137 && drain() == (total - 137) * ratio && pipeline.PositionFrames() == total, "pipeline seek preserves48k timeline and exact remaining frame count");
         }

@@ -129,6 +129,7 @@ void Decoder::RefreshNativeInfo() {
         if (!info_.station.title.empty()) info_.display_title = info_.station.title;
         ++metadata_revision_;
     }
+    info_.file_size = http_ ? http_->SourceSize() : -1;
     info_.bandwidth_hz = source.bandwidth_hz; info_.packet_duration_us = source.packet_duration_us;
     info_.pitch48 = source.pitch48; info_.final_range = source.final_range;
     info_.concealed_frames48 = source.concealed_frames48; info_.fec_frames48 = source.fec_frames48;
@@ -189,6 +190,10 @@ void Decoder::RefreshTags() {
     metadata_link_ = link;
     info_.current_link = link;
     info_.serial = static_cast<std::uint32_t>(op_serialno(file_, link));
+    info_.format_version = head ? head->version : -1;
+    info_.pre_skip48 = head ? static_cast<int>(head->pre_skip) : -1;
+    info_.stream_count = head ? head->stream_count : 0;
+    info_.coupled_count = head ? head->coupled_count : 0;
     const int header_gain = head ? head->output_gain : 0;
     const int source_channels = head ? head->channel_count : 0;
     const int source_rate = head ? static_cast<int>(std::min<opus_uint32>(head->input_sample_rate, INT_MAX)) : 0;
@@ -262,6 +267,7 @@ bool Decoder::Open(const wchar_t* path, int* error, const PlaybackSettings& sett
         op_set_decode_callback(file_, DecodeCallback, this);
         const auto* head = op_head(file_, 0);
         if (!head) { Close(); if (error) *error = OP_EBADHEADER; return false; }
+        info_.file_size = http_->SourceSize();
         info_.seekable = op_seekable(file_) != 0;
         info_.total_frames = info_.seekable ? op_pcm_total(file_, -1) : -1;
         if (info_.seekable && info_.total_frames < 0) { Close(); if (error) *error = OP_EBADLINK; return false; }

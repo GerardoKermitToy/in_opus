@@ -1,4 +1,4 @@
-# Ogg Opus feature transfer — 1.5.0
+# Ogg Opus feature transfer — 1.5.1
 
 This release adapts codec-independent facilities from the independent GPL-only
 `in_vorbis` project. It remains an **Ogg Opus** input: it does not register or decode
@@ -30,10 +30,28 @@ plugin's per-user settings; inherited Winamp snapshots are never persisted back.
 ## OpusTags and metadata
 
 Local Ogg Opus text comments may be changed through Winamp's metadata setter/write
-exports or the file-information tag editor. The editor can target one sequential
-logical link or all links. Empty values delete a field. Unspecified comments and
-embedded pictures are preserved; artwork editing is not implemented. Audio
-packets are not reencoded.
+exports or the file-information tag editor. The default unified dialog is owned
+by Winamp: Basic Info, Artwork, the path, tabs and OK/Cancel are not duplicated.
+The plugin supplies one Advanced child with a Name/Value list, Name entry,
+multiline Value entry and Add New / Delete / Delete All. All twelve Basic Info
+fields remain supported and editable when unset; both tabs exchange host field
+broadcasts without recursive echoes. The parent INBUILT_NOWRITEINFO marker
+suppresses duplicate generic writes and is restored when Advanced closes.
+
+Advanced edits the selected logical link through an ordered snapshot, retaining
+repeated names, literal empty values and long/multiline Unicode text. Only changed
+field groups are rewritten; artwork, opaque comments, other links and audio
+packets are preserved. A stale snapshot is rejected rather than overwriting an
+external edit. There are no separate 128-character-name or 64-Ki-character-value
+limits: structural checks, 65536 comment entries and the aggregate 16 MiB header
+safety bound still apply. Raw Advanced fields are text, not host rating/R128
+conversions. Host Basic Info conversions retain their existing meaning.
+
+The standalone editor remains the fallback when unified File Info is disabled;
+it can target one sequential link or all links. Its patch API, like the metadata
+setter/write exports, treats an empty value as deletion rather than a literal
+empty comment. Embedded pictures are preserved, not edited. Radio, RIFF wrappers
+and unsafe layouts remain read-only.
 
 The conservative writer validates page CRC, packet/header lifecycle and safe
 sequential framing. It writes a temporary file beside the original, checks for
@@ -141,10 +159,21 @@ are transactional: parent Cancel discards them and only parent OK persists.
 
 A separate language-module GUID and stable append-only string IDs support
 per-string English fallback. Language data translate UI text, not user tags,
-paths, station titles, numeric values or foreign dialog layouts. The technical
-unified pane remains read-only but no longer disables the host's editable basic
-fields. Existing language packs generally need a module specifically for this
-independent plugin.
+paths, station titles, numeric values or foreign dialog layouts. Advanced and the
+historical technical-data labels use additional append-only IDs; earlier IDs are
+not renumbered. Existing language packs generally need a module specifically for
+this independent plugin.
+
+Format Info starts with Length, Average bitrate, File size, Channels, Sampling
+rate, Serial number, Version and Vendor. Average bitrate counts the complete
+container (including a RIFF wrapper where present), using the 48-kHz Opus granule
+timeline rather than the decoded rate or the input-rate hint. Following facts are
+shown only when known: millisecond duration, sample count explicitly labeled at
+48 kHz, logical-link identity, mapping/stream counts, pre-skip, header/R128 gain,
+actual QEXT and packet/recovery diagnostics. No lossy source bit depth is invented.
+The recognized Winamp read-only multiline Format Info Edit gets scrolling; it is
+not replaced, and its original style is restored when Advanced closes. Unknown
+host layouts retain their original behavior.
 
 ## Playlist and work invariants
 

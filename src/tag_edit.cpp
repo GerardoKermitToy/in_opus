@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "tag_edit.hpp"
+#include "opus_decoder.hpp"
 #include "language.hpp"
 #include <algorithm>
 #include <array>
@@ -17,7 +18,8 @@
 
 namespace winamp_opus {
 namespace {
-constexpr std::size_t kMaxValueChars = 65536;
+// UI and setters share the writer's aggregate header safety bound, not 128/64K caps.
+constexpr std::size_t kMaxValueChars = 16u * 1024u * 1024u;
 std::mutex configurationMutex;
 HWND hostWindow = nullptr;
 void (*invalidateMetadata)(const wchar_t*) = nullptr;
@@ -56,7 +58,7 @@ void Committed(const std::wstring& path) noexcept {
 }
 
 bool Name(std::string& key, bool hostAliases) {
-    if (key.empty() || key.size() > 128) return false;
+    if (key.empty() || key.size() > kMaxValueChars) return false;
     for (char& c : key) {
         const auto byte = static_cast<unsigned char>(c);
         if (byte < 32 || byte > 125 || c == '=') return false;
@@ -68,6 +70,8 @@ bool Name(std::string& key, bool hostAliases) {
         else if (key == "disc" || key == "disk") key = "discnumber";
         else if (key == "album artist" || key == "album_artist") key = "albumartist";
         else if (key == "publisher") key = "organization";
+        else if (key == "tool") key = "encoded-by";
+        else if (key == "subtitle") key = "version";
         else if (key == "url") key = "purl";
         else if (key == "category") key = "genre";
         else if (key == "grouping") key = "contentgroup";
@@ -75,7 +79,7 @@ bool Name(std::string& key, bool hostAliases) {
         else if (key == "disctotal" || key == "totaldiscs") key = "disctotal";
     }
     for (const char* reserved : {"length", "bitrate", "channels", "samplerate", "type", "lossless", "family",
-        "formatinformation", "mime", "rateable", "serial", "gain", "stereo", "vendor",
+        "formatinformation", "mime", "rateable", "serial", "serialnumber", "serialnumber_hex", "gain", "stereo", "vendor",
         "metadata_block_picture", "coverart", "coverartmime"}) if (key == reserved) return false;
     return true;
 }
@@ -157,7 +161,10 @@ bool Patches(const std::vector<OpusTagLink>& links, const OpusTagChanges& fields
                 // including deletion, so metadata fallback cannot resurrect it.
                 const std::pair<const char*, const char*> aliases[] = {
                     {"comment", "description"}, {"date", "year"}, {"albumartist", "album artist"},
-                    {"albumartist", "album_artist"}, {"organization", "publisher"}, {"purl", "url"},
+                    {"albumartist", "album_artist"}, {"albumartist", "ensemble"},
+                    {"tracknumber", "track"}, {"discnumber", "disc"}, {"discnumber", "disk"},
+                    {"encoded-by", "tool"}, {"version", "subtitle"},
+                    {"organization", "publisher"}, {"purl", "url"},
                     {"genre", "category"}, {"contentgroup", "grouping"},
                     {"tracktotal", "totaltracks"}, {"disctotal", "totaldiscs"}};
                 for (const auto& alias : aliases) if (item.first == alias.first) patches[i][alias.second] = L"";
@@ -167,20 +174,24 @@ bool Patches(const std::vector<OpusTagLink>& links, const OpusTagChanges& fields
     return true;
 }
 
-bool Stage(const wchar_t* path, const char* rawKey, const wchar_t* rawValue) {
-    if (!rawKey || !rawValue || strnlen_s(rawKey, 129) > 128 || wcsnlen_s(rawValue, kMaxValueChars + 1) > kMaxValueChars)
-        return false;
-    std::wstring absolute;
-    if (!LocalPath(path, absolute)) return false;
-    std::string key(rawKey);
+bool HostField(const char* rawKey, const wchar_t* rawValue, std::string& key, std::wstring& value) {
+    if (!rawKey || !rawValue || strnlen_s(rawKey, kMaxValueChars + 1) > kMaxValueChars ||
+        wcsnlen_s(rawValue, kMaxValueChars + 1) > kMaxValueChars) return false;
+    key = rawKey;
     if (!Name(key, true)) return false;
-    std::wstring value(rawValue);
+    value = rawValue;
     if (!ValidateRawValue(key, value)) return false;
     if (key == "rating" && !value.empty()) {
         int rating = 0;
         if (!Integer(value, rating) || rating < 0 || rating > 5) return false;
         value = std::to_wstring(rating * 20);
     }
+    return true;
+}
+bool Stage(const wchar_t* path, const char* rawKey, const wchar_t* rawValue) {
+    std::wstring absolute, value;
+    std::string key;
+    if (!LocalPath(path, absolute) || !HostField(rawKey, rawValue, key, value)) return false;
     const bool differentPath = _wcsicmp(staged.path.c_str(), absolute.c_str()) != 0;
     std::vector<int> headers;
     if (differentPath || staged.headerGains.empty()) {
@@ -358,7 +369,7 @@ INT_PTR CALLBACK EditorProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
                     EndDialog(dialog, -1); return TRUE;
                 }
             }
-            SendDlgItemMessageW(dialog, Key, EM_SETLIMITTEXT, 128, 0);
+            SendDlgItemMessageW(dialog, Key, EM_SETLIMITTEXT, kMaxValueChars, 0);
             SendDlgItemMessageW(dialog, Value, EM_SETLIMITTEXT, kMaxValueChars, 0);
             SendDlgItemMessageW(dialog, Scope, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(Localized(L"All logical links").c_str()));
             for (std::size_t i = 0; i < editor->links.size(); ++i) {
@@ -425,6 +436,24 @@ INT_PTR CALLBACK EditorProc(HWND dialog, UINT message, WPARAM wparam, LPARAM lpa
 }
 } // namespace
 
+bool PrepareTagPatch(const TrackInfo& info, const char* key, const wchar_t* value, OpusTagChanges& result) {
+    if (info.radio) return false;
+    std::string native;
+    std::wstring stored;
+    if (!HostField(key, value, native, stored)) return false;
+    OpusTagLink link;
+    link.header_gain_q8 = info.header_gain_q8;
+    std::vector<OpusTagChanges> patches;
+    if (!Patches({link}, {{native, stored}}, patches)) return false;
+    result = std::move(patches.front());
+    return true;
+}
+void NotifyTagsCommitted(const wchar_t* path) noexcept {
+    try {
+        std::wstring absolute;
+        if (LocalPath(path, absolute)) Committed(absolute);
+    } catch (...) {}
+}
 void ConfigureTagEditing(HWND host, void (*invalidate)(const wchar_t*)) noexcept {
     try { std::lock_guard<std::mutex> guard(configurationMutex); hostWindow = host; invalidateMetadata = invalidate; }
     catch (...) {}

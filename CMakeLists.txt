@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24...4.4)
-project(WinampOpus VERSION 1.5.0 LANGUAGES C CXX)
+project(WinampOpus VERSION 1.5.1 LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT MSVC)
     message(FATAL_ERROR "Build with Microsoft Visual C++ on Windows.")
@@ -63,7 +63,7 @@ target_compile_options(opus_decoder PRIVATE /W4 /permissive- /utf-8)
 add_library(in_opus SHARED src/plugin.cpp src/winamp_input.hpp src/in_opus.def src/version.rc
     src/file_info_dialog.cpp src/file_info_dialog.hpp src/file_info_dialog.rc src/resource.h
     src/output_settings.cpp src/output_settings.hpp src/metadata.cpp src/metadata.hpp
-    src/tag_edit.cpp src/tag_edit.hpp src/extended_read.cpp)
+    src/tag_edit.cpp src/tag_edit.hpp src/tag_editor.cpp src/tag_editor.hpp src/extended_read.cpp)
 target_link_libraries(in_opus PRIVATE opus_decoder user32 gdi32 advapi32)
 target_compile_options(in_opus PRIVATE /W4 /permissive- /utf-8)
 set_target_properties(in_opus PROPERTIES PREFIX "" OUTPUT_NAME "in_opus"

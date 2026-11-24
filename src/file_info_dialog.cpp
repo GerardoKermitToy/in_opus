@@ -3,6 +3,7 @@
 #include "output_settings.hpp"
 #include "metadata.hpp"
 #include "tag_edit.hpp"
+#include "tag_editor.hpp"
 #include "language.hpp"
 #include <algorithm>
 #include <cwchar>
@@ -160,22 +161,7 @@ void ShowFileInfoDialog(HINSTANCE instance, HWND parent, const wchar_t* path, co
         MessageBoxW(parent, L"Could not open the file information dialog.", L"Winamp Opus Input", MB_OK | MB_ICONERROR);
     }
 }
-namespace {
-INT_PTR CALLBACK UnifiedProc(HWND dialog, UINT message, WPARAM, LPARAM lparam) noexcept {
-    if (message == WM_INITDIALOG) {
-        SetDlgItemTextW(dialog, IDC_INFO_TAGS, reinterpret_cast<const wchar_t*>(lparam));
-        // Only this technical pane is read-only. The host's basic pane must
-        // remain editable now that the setter/write ABI is implemented.
-        LocalizeDialog(dialog);
-        return TRUE;
-    }
-    return FALSE;
-}
-}
-HWND CreateUnifiedInfoPane(HINSTANCE instance, HWND parent, const TrackInfo& info) {
-    const auto text = TagInformation(info);
-    const auto pane = CreateDialogParamW(instance, MAKEINTRESOURCEW(IDD_OPUS_UNIFIED), parent,
-        UnifiedProc, reinterpret_cast<LPARAM>(text.c_str()));
-    return pane;
+HWND CreateUnifiedInfoPane(HINSTANCE instance, HWND parent, const wchar_t* path, const TrackInfo& info) {
+    return CreateTagEditorPane(instance, parent, path, info);
 }
 } // namespace winamp_opus

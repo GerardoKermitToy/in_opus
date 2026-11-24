@@ -1,4 +1,82 @@
-# Verification — Winamp Opus Input 1.5.0 — 2026-11-23
+# Verification — Winamp Opus Input 1.5.1 — 2026-11-24
+
+## Version 1.5.1 build and regression checks
+
+The Win32 Release and Debug configurations were rebuilt after the version bump.
+The combined CTest suite passed **41/41 Release** (133.74 s) and **41/41 Debug**
+(173.07 s). The language catalogue check passed with 266 stable strings.
+The Release DLL reports FileVersion and ProductVersion **1.5.1**, and Winamp's
+plugin description reports the same version.
+
+`dist/Plugins/in_opus.dll` is byte-identical to the rebuilt Release DLL and
+passed the dedicated unified editor regression after staging. Its SHA-256 is:
+
+```text
+dc2765f713dbc80539fc36306f173ca10b1d6d5ccae281841a7ff40b03ebb039  Plugins/in_opus.dll
+```
+
+The prior staged editor DLL was preserved under `build/staged-plugin-backups`.
+The 1.5.1 DLL was not installed into Winamp. The isolated native Winamp test
+below was performed before the version bump, on the editor build identified by
+its original hash.
+
+## Unified Advanced editor before the version bump (1.5.0)
+
+The unified pane is now an independently authored native Advanced editor, not a
+second technical summary or a launcher for another dialog. Winamp retains Basic
+Info, Artwork, the path, tabs and OK/Cancel. An ordered OpusTags document retains
+repeated fields, literal empty values and long/multiline Unicode text; only edited
+field groups are rewritten. Opaque comments, embedded artwork, unrelated links
+and encoded audio remain untouched. Stale editor snapshots are rejected. Host
+rating/R128 conversions and the existing active-playback metadata overlay remain
+separate from raw Advanced text editing.
+
+All twelve Basic Info fields return supported-but-empty when unset. Format Info
+starts with the historical Length/Average bitrate/File size/Channels/Sampling
+rate/Serial number/Version/Vendor block, followed by known Opus details. Complete
+source size is preserved through RIFF unwrapping; container bitrate uses the
+48-kHz granule timeline even when actual QEXT decoding is 96 kHz. Header version,
+pre-skip, stream/coupled counts and existing packet/recovery diagnostics are shown
+only when available. Existing language IDs are retained with append-only entries.
+The recognized host-owned Format Info Edit receives reversible scroll styles;
+there is no replacement technical control.
+
+An isolated **Winamp 5.9.2 Build 10042** runtime loaded the new in_opus.dll and
+opened the actual native File Info window. All twelve standard controls were
+enabled; all twelve were edited, Advanced reflected the changes, and editing the
+title in Advanced immediately updated Basic Info. Native OK persisted the fields;
+native Cancel discarded a later draft. Format Info mouse-wheel scrolling advanced
+from first visible line **0 to 3**. Basic Info/Advanced/scrolled Format Info captures
+were inspected. The isolated runtime was closed and the installed Vorbis input
+DLL's SHA-256 was verified unchanged. No installed DLL or profile was a writable
+test target.
+
+Final combined MSVC Win32 runs passed **41/41 Release** (72.96 s) and
+**41/41 Debug** (92.79 s), including the sibling Ogg tests and the enabled
+real-file surround cases. The dedicated `unified_tag_editor` exercises duplicate
+comments, literal empty values, multiline Unicode, a 200-character name and a
+70,000-character value, host broadcasts, OK/Cancel, stale-write rejection,
+artwork/opaque-comment and decoded-audio preservation, native gain/rating
+conversion, no-op file identity and the unchanged host-control style. Its
+unattended host is hidden; unexpected top-level dialogs fail rather than block.
+The translation catalogue check passed with 266 stable IDs. Release retains
+IPO/LTO and the dynamic CRT; the output is PE32/x86. `git diff --check` passes.
+
+At the time, the editor DLL in `dist/Plugins/in_opus.dll` was byte-identical to
+its 1.5.0 Release build and passed the editor regression directly after staging.
+Its SHA-256 matched the DLL loaded in the isolated Winamp runtime:
+
+```text
+9dc335a0439ec31b022ed55941dc8bd08cff620edeec76213a502b5f47b42b9f  Plugins/in_opus.dll
+```
+
+The previous staged DLL was backed up under `build/staged-plugin-backups` before
+replacement. No DLL was installed into Winamp. These results cover this Winamp
+version and generated fixtures, not every skin/version or malformed input.
+
+---
+
+# Historical verification — 2026-11-23
 
 ## Final Opus-only feature-transfer verification
 

@@ -69,3 +69,11 @@
 #define IDC_INTERACTIVE_AUTH 1091
 #define IDC_HTTP_SEEK 1092
 #define IDC_SAVE_DIRECTORY 1093
+// Unified Advanced pane only; Winamp supplies the surrounding controls.
+#define IDC_TAG_LIST 1102
+#define IDC_TAG_NAME 1103
+#define IDC_TAG_VALUE 1104
+#define IDC_TAG_ADD_NEW 1105
+#define IDC_TAG_DELETE 1106
+#define IDC_TAG_DELETE_ALL 1107
+#define IDC_UNIFIED_SUMMARY 1108

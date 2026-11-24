@@ -21,7 +21,8 @@ inline int BitrateKbps(int bitrate) noexcept {
 }
 
 struct TrackInfo {
-    std::int64_t total_frames = 0;
+    std::int64_t total_frames = 0, file_size = -1;
+    int format_version = -1, pre_skip48 = -1, stream_count = 0, coupled_count = 0;
     int length_ms = 0;
     int source_channels = 0;
     int native_channels = 0;

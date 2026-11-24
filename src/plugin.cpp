@@ -112,6 +112,7 @@ void ApplyEditedTags(TrackInfo& info) {
     const auto& edited = edited_links[info.current_link];
     if (info.serial && info.serial != edited.serial) return;
     info.tags = edited.tags; info.vendor = edited.vendor;
+    if (edited.file_size >= 0) info.file_size = edited.file_size;
     auto tag = [&](const char* key) { const auto i = info.tags.find(key); return i == info.tags.end() ? std::wstring{} : i->second; };
     info.title = tag("title"); info.artist = tag("artist"); info.album = tag("album");
     auto gain = [&](const char* key, int& q8) {
@@ -475,7 +476,7 @@ int __cdecl InfoBox(const wchar_t* path, HWND parent) {
     return 1;
 }
 void __cdecl About(HWND parent) {
-    MessageBoxW(parent, L"Winamp Opus Input 1.5.0 (32-bit)\n\n"
+    MessageBoxW(parent, L"Winamp Opus Input 1.5.1 (32-bit)\n\n"
         L"libopus 1.6.1 / libopusfile 0.12 / libogg 1.3.6 / SpeexDSP 1.2.1\n"
         L"Local Ogg Opus and HTTP(S) radio, Unicode, ReplayGain/R128, seeking, DSP and visualization.\n"
         L"Native Opus HD/QEXT, optional OSCE/BWE, Ambisonics and bounded recovery.\n"
@@ -502,7 +503,7 @@ void __cdecl Init() {
 void __cdecl Quit() { Stop(); ConfigureTagEditing(nullptr,nullptr); ShutdownLanguage(); }
 void __cdecl EQSet(int, char[10], int) { }
 winamp::InModule MakeModule() noexcept {
-    static char description[] = "Winamp Opus Input 1.5.0 (x86)";
+    static char description[] = "Winamp Opus Input 1.5.1 (x86)";
     static char extensions[] = "opus;opu\0Ogg Opus Audio (*.opus;*.opu)\0";
     winamp::InModule r{};
     r.version = winamp::kInputVersion; r.description = description; r.FileExtensions = extensions;
@@ -549,11 +550,11 @@ extern "C" int __cdecl winampUseUnifiedFileInfoDlg(const wchar_t* path) {
     catch (...) { return 0; }
 }
 extern "C" HWND __cdecl winampAddUnifiedFileInfoPane(int index, const wchar_t* path, HWND parent, wchar_t* name, int capacity) {
-    if (index != 0 || !path || !parent || IsHttpUrl(path)) return nullptr;
+    if (index != 0 || !path || !*path || !parent || !name || capacity < 1 || IsHttpUrl(path)) return nullptr;
     try {
         const auto info = FileInfo(path);
         if (info.display_title.empty()) return nullptr;
-        CopyText(name, capacity > 0 ? static_cast<std::size_t>(capacity) : 0, L"Opus (read-only)");
-        return CreateUnifiedInfoPane(module.hDllInstance, parent, info);
+        CopyText(name, static_cast<std::size_t>(capacity), Localized(L"Advanced").c_str());
+        return CreateUnifiedInfoPane(module.hDllInstance, parent, path, info);
     } catch (...) { return nullptr; }
 }
