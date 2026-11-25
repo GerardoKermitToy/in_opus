@@ -5,7 +5,8 @@ param(
     [ValidateSet('Release', 'Debug', 'RelWithDebInfo')]
     [string]$Configuration = 'Release',
     [string]$SampleFile = '',
-    [switch]$DependenciesOnly
+    [switch]$DependenciesOnly,
+    [switch]$RunTests
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,13 +24,16 @@ function Run([string]$Program, [string[]]$Arguments) {
 Push-Location $root
 try {
     $only = if ($DependenciesOnly) { 'ON' } else { 'OFF' }
-    Run 'cmake' @('--preset', $Preset, "-DWINAMP_OPUS_DEPENDENCIES_ONLY=$only", "-DWINAMP_OPUS_TEST_FILE=$SampleFile")
+    $tests = if ($RunTests -and -not $DependenciesOnly) { 'ON' } else { 'OFF' }
+    Run 'cmake' @('--preset', $Preset, "-DWINAMP_OPUS_DEPENDENCIES_ONLY=$only", "-DWINAMP_OPUS_BUILD_TESTS=$tests", "-DWINAMP_OPUS_TEST_FILE=$SampleFile")
     $build = Join-Path $root "build/$Preset"
     $arguments = @('--build', $build, '--config', $Configuration, '--parallel', '4')
     if ($DependenciesOnly) { $arguments += @('--target', 'ogg', 'opus', 'opusfile') }
     Run 'cmake' $arguments
     if (-not $DependenciesOnly) {
-        Run 'ctest' @('--test-dir', $build, '-C', $Configuration, '--output-on-failure')
+        if ($RunTests) {
+            Run 'ctest' @('--test-dir', $build, '-C', $Configuration, '--output-on-failure')
+        }
         Run 'cmake' @('--install', $build, '--config', $Configuration, '--component', 'Runtime')
     }
 }

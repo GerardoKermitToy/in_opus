@@ -4,43 +4,25 @@ A 32-bit input plugin for Ogg Opus files and HTTP/HTTPS radio in Winamp 5.9.
 
 ## Features
 
-- `.opus` and `.opu`, plus `.ogg` and `.oga` containing Opus; Vorbis is not claimed.
-- HTTP/HTTPS Ogg Opus radio with station information and chained-stream tags.
-- Unicode paths and tags; standard Winamp metadata, safe local OpusTags editing and rating.
-- Winamp-owned **File Info → Basic Info / Advanced** with one native Name/Value
-  editor, Add New / Delete / Delete All and bidirectional field synchronization.
-  Repeated tags, empty values and long/multiline Unicode text remain separate;
-  OK commits and Cancel discards drafts without reencoding audio.
-- Historical Format Info layout plus known Opus header/decoder facts, with scrolling
-  in the existing host field rather than a duplicate technical pane.
-- Integer/IEEE-float extended-read PCM sessions with seeking and cancellation.
-- Optional Winamp ReplayGain/proxy snapshots and independent language-pack support.
-- Original 1–8 channels, stereo/mono/quad downmix, explicit DS/DS2 matrices and codec-order compatibility.
-- Stable radio output; ICY titles, optional recording, bounded reconnect and configurable buffering.
-- 8/16/24/32-bit integer PCM, optional 8–192 kHz SpeexDSP resampling.
-- ReplayGain/R128 album, track, and shuffle-aware gain; separate file/radio preamps.
-- Target LUFS, preferred/fallback gain, untagged preamp, tagged-peak policies and bitrate display.
-- Opt-in custom rectangular/triangular/Gaussian dither and first-order/ATH noise shaping.
-- Pause, local-file seeking, DSP, visualization, and native English settings dialogs.
-- Actual QEXT/Opus HD at native 96 kHz, not inferred from an input-rate hint.
-- Optional LACE/NoLACE speech enhancement, 48-kHz speech BWE and mono-compatible intensity stereo.
-- Ambisonics mapping families 2/3 with stereo/headphone/quad/5.1/7.1 rendering.
-- Explicit packet-extension comparison and bounded PLC/neural PLC/FEC/DRED recovery.
-- Packet bandwidth, duration, pitch, entropy-state and recovery diagnostics.
+- Ogg Opus in `.opus`, `.opu`, `.ogg` and `.oga` files; Vorbis is not supported.
+- HTTP/HTTPS radio with station tags, ICY titles and optional recording/reconnect.
+- Unicode paths and tags; safe local tag editing without reencoding audio.
+- Multichannel playback and downmixing, 8/16/24/32-bit integer PCM and optional
+  8–192 kHz resampling.
+- ReplayGain/R128, preamps, configurable dithering and noise shaping.
+- DSP, visualization, decode-only PCM sessions and language-pack support.
+- Advanced decoding: QEXT/Opus HD at 96 kHz, speech enhancement and Ambisonics.
 
-Defaults remain **48 kHz / 16-bit, source channels, header gain only, dithering on**.
-Custom processing, recording, reconnect, remote seeking and host ReplayGain inheritance
-are opt-in. The default File Info window uses Winamp's Basic Info and the plugin's
-editable Advanced tab. Standard fields stay enabled even without tags; embedded
-artwork is preserved but not edited by this plugin. The standalone editor remains
-available when unified File Info is disabled. See [feature transfer and
-conflict choices](docs/FEATURE_TRANSFER.md).
+Defaults: **48 kHz / 16-bit, source channels, header gain only, dithering on**.
+Change playback options under **Preferences → Plug-ins → Input → Configure**;
+restart playback to apply them. Multichannel output requires a compatible output
+plugin, driver and device.
 
 ## Requirements
 
 - Windows 10/11 with **32-bit Winamp 5.9.x**.
-- **Microsoft Visual C++ Redistributable v14 (x86)** and Universal CRT
-  (included with Windows 10/11). The x64 redistributable alone is not sufficient.
+- **Microsoft Visual C++ Redistributable v14 (x86)**. The x64 package alone is
+  not sufficient.
 
 ## Installation
 
@@ -48,7 +30,7 @@ conflict choices](docs/FEATURE_TRANSFER.md).
 2. Copy `dist/Plugins/in_opus.dll` to the `Plugins` folder beside `winamp.exe`.
 3. Restart Winamp. The plugin appears under **Preferences → Plug-ins → Input**.
 
-Alternatively, run the installer, which backs up an existing plugin:
+Alternatively, use the installer, which backs up an existing plugin:
 
 ```powershell
 .\tools\Install-Plugin.ps1 -PluginPath .\dist\Plugins\in_opus.dll
@@ -58,98 +40,42 @@ Installing into Program Files normally requires administrator privileges.
 
 ## HTTP/HTTPS radio
 
-Open a direct Ogg Opus stream URL with Winamp's **Open URL** command (Ctrl+L).
-The [Xiph Opus directory](https://dir.xiph.org/codecs/Opus) lists example stations;
-use a direct stream endpoint, not a station website or an M3U download.
-Extensionless URLs are checked for Opus content. If another input plugin takes
-priority, append `>.opus` to the stream URL; the hint is removed before connecting.
-Winamp loads its bundled Vorbis input first; it claims HTTP URLs ending in `.ogg`
-without checking the codec. For Opus stations using that suffix, use the hint:
+Open a direct Ogg Opus stream URL with **Open URL** (Ctrl+L), not a station website
+or playlist. The [Xiph Opus directory](https://dir.xiph.org/codecs/Opus) lists
+example stations.
 
-```text
-http://icecast.radiosega.net:8006/rs-opus.ogg>.opus
-```
-
-Radio is forward-only: duration is unknown, seeking is disabled, and output is
-stereo so chained streams may change source channels safely. Alt+3 shows available
-station headers and Opus tags without opening another connection. HTTPS uses
-Windows certificate verification; redirects cannot downgrade HTTPS to HTTP.
-Network reads and reconnect waits are cancelled on Stop. More settings controls
-timeouts, probe/buffer limits, ICY titles, transient Basic/Digest authentication,
-proxy policy, recording and bounded reconnect. Finite non-ICY HTTP files can use
-opt-in seeking when byte ranges and a stable representation validator are supplied.
-Live radio stays non-seekable. M3U/PLS playlist parsing is not provided.
-
-## Output settings
-
-Open the plugin's **Configure** dialog:
-
-- **Source channels** (default): preserves mono and multichannel audio without
-  downmixing and reorders samples to Windows PCM channel order.
-- **Stereo**: produces two channels for any supported recording.
-- **Mono / Quad / DS / DS2**: explicit speaker processing; quad preserves fewer
-  source channels when no multichannel downmix is needed. Matrix sums need headroom.
-- **Unmapped codec order**: compatibility-only family-1 speaker order, not raw
-  Ambisonics coefficients or a recommended Windows layout.
-
-Restart playback after changing the setting. Unsupported channel layouts or
-formats rejected by the output plugin fall back to stereo. Multichannel playback
-requires a compatible output plugin, driver, and device.
-
-The same dialog selects PCM resolution/rate, resampler quality (0–10), R128 gain
-mode, preamps, target loudness, dithering, and the information dialog. Rate **0**
-selects native output (48 kHz ordinarily, 96 kHz for enabled QEXT). Resampling is
-bypassed when the selected rate equals the decoder rate. Higher output rates do
-not manufacture HD content: standard Opus still decodes at 48 kHz.
-32-bit output is integer PCM, not floating-point.
-For gain modes using R128 tags, -23 LUFS preserves their native reference; -18 LUFS
-adds 5 dB. Header-only mode does not apply R128 tag gain. Optional tagged-peak
-policies do not replace a true-peak limiter; matrix/DSP processing may still clip.
-Older DSP/output plugins may require the default 16-bit format.
+If another input plugin handles the URL (common with `.ogg`), append `>.opus`;
+the hint is removed before connecting. Live radio is non-seekable and uses stereo
+output. Alt+3 shows available station information and tags. M3U/PLS playlist
+parsing is not provided.
 
 ## Build
 
-Use Visual Studio 2022 with **Desktop development with C++**, a Windows SDK,
-and CMake 3.24 or newer. Run from the repository root:
+Use Visual Studio 2022 with **Desktop development with C++**, a Windows SDK and
+**CMake 3.25+**. Run from the repository root:
 
 ```powershell
-cmake --preset vs2022-win32
+.\tools\Build.ps1
 ```
+
+This builds Release for **Win32** and stages the DLL, documentation and licenses
+under `dist`; it does not install into Winamp. Tests are neither built nor run by
+default. To include them:
 
 ```powershell
-cmake --build --preset release
+.\tools\Build.ps1 -RunTests
 ```
 
-Package the DLL, documentation, and licenses into `dist`:
+The script also accepts `-Configuration Debug` and `-Preset vs2026-win32`
+(the latter requires Visual Studio 2026 and a CMake version supporting it).
+Distribute **Release builds only**. Dependencies are downloaded from pinned
+sources on the first configure; see [cmake/Dependencies.cmake](cmake/Dependencies.cmake).
 
-```powershell
-cmake --install build/vs2022-win32 --config Release --component Runtime
-```
+## Documentation
 
-This does not install the plugin into Winamp. Build only for **Win32**, not x64.
-If the independent GPL Ogg-input project is present at `../in_vorbis`, CMake also
-builds `in_vorbis.dll` using the same audio-library targets. Its source remains in
-that separate repository. Set `WINAMP_OPUS_BUILD_OGG_INPUT=OFF` to build only Opus,
-or set `WINAMP_OPUS_OGG_INPUT_SOURCE` to use another Ogg-input source directory.
-This is a new implementation, not the WCL-licensed Winamp Vorbis source.
-For Visual Studio 2026, use `vs2026-win32`, `release-vs2026`, and
-`build/vs2026-win32` instead, with a CMake version supporting that generator.
-
-Dependencies are downloaded and built from pinned sources:
-**libopus 1.6.1**, **libopusfile 0.12**, **libogg 1.3.6**, and the **SpeexDSP 1.2.1** resampler.
-See [cmake/Dependencies.cmake](cmake/Dependencies.cmake).
-QEXT, OSCE/BWE, neural PLC and DRED support are compiled with pinned embedded
-weight tables. Speech enhancement, BWE and loss recovery remain off by default;
-standard playback does not opt into them. Nonstandard custom CELT modes stay off.
-See [advanced decoding](docs/ADVANCED_DECODING.md) for effective policies and limits.
-Audio libraries are linked statically; the plugin and dependencies use the
-same dynamic CRT (`/MD` for Release, `/MDd` for Debug). Distribute Release builds only.
-
-Optional tests:
-
-```powershell
-ctest --preset release
-```
+- [Metadata, gain, networking and output options](docs/FEATURE_TRANSFER.md)
+- [Advanced decoding and limits](docs/ADVANCED_DECODING.md)
+- [Language packs](docs/language-pack/README.md)
 
 ## License
 
